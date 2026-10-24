@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Activity,
@@ -29,7 +29,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<string>("");
 
-  const checkHealth = async () => {
+  const checkHealth = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -41,16 +41,44 @@ export default function Home() {
       } else {
         setError(json.error?.message || "Failed to retrieve health status");
       }
-    } catch (err: any) {
-      setError(err?.message || "Could not connect to API via same-origin rewrite");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not connect to API via same-origin rewrite");
     } finally {
       setLoading(false);
       setLastChecked(new Date().toLocaleTimeString());
     }
-  };
+  }, []);
 
   useEffect(() => {
-    checkHealth();
+    let ignore = false;
+    const fetchHealth = async () => {
+      try {
+        const res = await fetch("/api/v1/health");
+        const json = await res.json();
+        if (!ignore) {
+          if (json.success && json.data) {
+            setHealth(json.data);
+          } else {
+            setError(json.error?.message || "Failed to retrieve health status");
+          }
+          setLastChecked(new Date().toLocaleTimeString());
+        }
+      } catch (err: unknown) {
+        if (!ignore) {
+          setError(err instanceof Error ? err.message : "Could not connect to API via same-origin rewrite");
+          setLastChecked(new Date().toLocaleTimeString());
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchHealth();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   return (

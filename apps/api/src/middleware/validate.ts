@@ -19,8 +19,13 @@ export function validateQuery<T>(schema: ZodSchema<T>) {
     if (!result.success) {
       throw new ValidationError('Invalid query parameters', result.error.format());
     }
-    // Express 5 defines req.query as a getter; assign properties instead of reassigning req.query
-    Object.assign(req.query, result.data);
+    // Express 5 defines req.query as a getter; assign to req.validatedQuery and object properties
+    (req as any).validatedQuery = result.data;
+    try {
+      Object.assign(req.query, result.data);
+    } catch {
+      // Ignore if req.query is read-only
+    }
     next();
   };
 }

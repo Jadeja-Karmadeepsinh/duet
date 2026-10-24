@@ -230,5 +230,150 @@ Restores an archived task back to `active`.
 
 ---
 
-## 4. Timer, Streaks, Analytics & Leaderboards (Upcoming Stages)
-*Documented in data-model.md; endpoints to be activated in Stages 4, 5, and 6.*
+## 4. Timer & Work Sessions API (Stage 4)
+
+All work session routes require authentication via HttpOnly `focus_session` cookie or `Authorization: Bearer <token>` header.
+
+### State Machine Transitions
+- **Modes**: `countdown` (when task `plannedDurationSeconds > 0`) or `stopwatch` (when `plannedDurationSeconds` is null).
+- **Statuses**: `running`, `paused`, `awaiting_decision`, `completed`, `stopped`.
+- **Single Running Timer Invariant**: Enforced by both service transactions and database partial unique index (`idx_work_sessions_single_running`). Simultaneous start requests result in exactly one 201 and one 409 Conflict.
+- **Expiry Exactness**: Countdown expiry closes the open segment exactly at `startedAt + remainingNeeded` (target boundary), locking `trackedSeconds` at `targetDurationSeconds` and status to `awaiting_decision`. No time accrues while awaiting choice.
+- **Extension Gaps**: Extending adds 900, 1800, or 3600 seconds to target and starts a new segment at action time; the decision gap is completely excluded.
+- **Idempotency**: `complete`, `stop`, and `expire` are fully idempotent. Repeated completion calls return the existing session and completion without duplicate rows.
+
+### `GET /api/v1/work-sessions/current`
+Retrieves the currently active (`running` or `awaiting_decision`) session for the authenticated profile with server-derived metrics. Reconciles expired countdown sessions on fetch/reload.
+- **Response** (`200 OK` - Active session):
+```json
+{
+  "success": true,
+  "data": {
+    "session": {
+      "id": "18cfd600-...",
+      "userId": "45f9e801-...",
+      "taskId": "72a11b03-...",
+      "mode": "countdown",
+      "status": "running",
+      "targetDurationSeconds": 1500,
+      "trackedSeconds": 0,
+      "taskTitleSnapshot": "Deep Work Session",
+      "categorySnapshot": "Engineering",
+      "startedAt": "2026-10-24T10:00:00.000Z",
+      "finishedAt": null,
+      "elapsedSeconds": 300,
+      "remainingSeconds": 1200,
+      "isExpired": false,
+      "staleRunningWarning": false,
+      "activeSegmentStartedAt": "2026-10-24T10:00:00.000Z"
+    }
+  }
+}
+```
+- **Response** (`200 OK` - None active): `{ "success": true, "data": { "session": null } }`
+
+### `GET /api/v1/work-sessions/paused`
+Lists all resumable paused sessions for the authenticated profile.
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [ ... ]
+  }
+}
+```
+
+### `GET /api/v1/work-sessions`
+Paginated history of sessions for the authenticated profile with optional filters.
+- **Query Parameters**:
+  - `page`: default 1
+  - `limit`: default 20 (max 100)
+  - `taskId`: optional UUID
+  - `status`: optional enum (`running` | `paused` | `awaiting_decision` | `completed` | `stopped`)
+  - `from`: optional ISO date string
+  - `to`: optional ISO date string
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [ ... ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "totalCount": 42,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+### `POST /api/v1/work-sessions/start`
+Starts a new work session and open segment.
+- **Request Body**:
+```json
+{
+  "taskId": "72a11b03-..."
+}
+```
+- **Responses**:
+  - `201 Created`: `{ "success": true, "data": { "session": { ... } } }`
+  - `409 Conflict`: User already has an active running session.
+  - `404 Not Found`: Task does not exist or belongs to another user.
+  - `400 Bad Request`: Task is archived.
+
+### `POST /api/v1/work-sessions/:id/pause`
+Closes the open segment at server time, accumulates segment duration into `trackedSeconds`, and sets status to `paused`.
+- **Response** (`200 OK`): `{ "success": true, "data": { "session": { ... } } }`
+- **Errors**: `409 Conflict` if session is not running or countdown expired before pause.
+
+### `POST /api/v1/work-sessions/:id/resume`
+Resumes a paused session, sets status to `running`, and creates a new open segment.
+- **Response** (`200 OK`): `{ "success": true, "data": { "session": { ... } } }`
+- **Errors**: `409 Conflict` if session is not paused or another session is already running.
+
+### `POST /api/v1/work-sessions/:id/expire`
+Explicit countdown expiry trigger when client timer reaches 0. Closes segment at exact target boundary and transitions status to `awaiting_decision`. Idempotent.
+- **Response** (`200 OK`): `{ "success": true, "data": { "session": { ... } } }`
+
+### `POST /api/v1/work-sessions/:id/extend`
+Extends an awaiting-decision countdown session. Only allowed from `awaiting_decision`.
+- **Request Body**:
+```json
+{
+  "extensionSeconds": 900 // 900 (15m), 1800 (30m), or 3600 (60m)
+}
+```
+- **Response** (`200 OK`): `{ "success": true, "data": { "session": { ... } } }`
+- **Errors**: `409 Conflict` if session is not awaiting decision, or if another session is running. `400 Bad Request` if invalid duration.
+
+### `POST /api/v1/work-sessions/:id/complete`
+Closes any active segment, marks session `completed`, and transactionally records exactly one `task_completions` row. Idempotent against double-clicks.
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "session": { ... },
+    "completion": {
+      "id": "99b380f2-...",
+      "userId": "45f9e801-...",
+      "taskId": "72a11b03-...",
+      "workSessionId": "18cfd600-...",
+      "taskTitleSnapshot": "Deep Work Session",
+      "categorySnapshot": "Engineering",
+      "completedAt": "2026-10-24T10:25:00.000Z"
+    }
+  }
+}
+```
+
+### `POST /api/v1/work-sessions/:id/stop`
+Stops session, closes open segment, sets status `stopped`, preserves `trackedSeconds`, and creates NO completion record.
+- **Response** (`200 OK`): `{ "success": true, "data": { "session": { ... } } }`
+
+---
+
+## 5. Streaks, Analytics & Leaderboards (Upcoming Stages)
+*Documented in data-model.md; endpoints to be activated in Stages 5 and 6.*
