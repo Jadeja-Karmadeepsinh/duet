@@ -245,13 +245,13 @@ export default function DashboardPage() {
         </header>
 
         {/* 12-Column Responsive Workspace Grid
-            Desktop: Col 1-7 (Timer), Col 8-12 (Streak + Tasks), Full-width (Activity)
+            Desktop: Col 1-7 (Timer), Col 8-12 (Streak + Tasks stacked column), Full-width (Activity)
             Mobile Order: Timer (1) → Streak (2) → Tasks (3) → Activity (4) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-stretch">
           {/* Module 1: Primary Focus Timer */}
           <section
             aria-label="Focus Timer"
-            className="order-1 lg:col-span-7 lg:row-span-2 w-full"
+            className="order-1 lg:col-span-7 flex flex-col w-full"
           >
             <TimerCard
               currentSession={currentSession}
@@ -262,41 +262,40 @@ export default function DashboardPage() {
               onTaskCreated={handleTaskCreated}
               selectedTaskId={selectedTaskId}
               onSelectTaskId={setSelectedTaskId}
+              className="h-full flex-1"
             />
           </section>
 
-          {/* Module 2: Supporting Streak Card */}
-          <section
-            aria-label="Focus Streak"
-            className="order-2 lg:col-span-5 w-full"
-          >
-            <StreakCard
-              currentStreak={statsSummary?.currentStreak ?? 0}
-              bestStreak={statsSummary?.bestStreak ?? 0}
-              completedTasksToday={statsSummary?.completedTasksToday ?? 0}
-            />
-          </section>
+          {/* Right Column: Supporting Streak Card & Focus Tasks List */}
+          <div className="order-2 lg:col-span-5 flex flex-col gap-5 lg:gap-6 w-full">
+            {/* Module 2: Supporting Streak Card */}
+            <section aria-label="Focus Streak" className="w-full">
+              <StreakCard
+                currentStreak={statsSummary?.currentStreak ?? 0}
+                bestStreak={statsSummary?.bestStreak ?? 0}
+                completedTasksToday={statsSummary?.completedTasksToday ?? 0}
+              />
+            </section>
 
-          {/* Module 3: Focus Tasks List & Add/Edit Flow */}
-          <section
-            aria-label="Focus Tasks"
-            className="order-3 lg:col-span-5 w-full"
-          >
-            <RecentTasks
-              tasks={tasks}
-              loading={loadingTasks}
-              selectedTaskId={selectedTaskId}
-              onSelectTask={setSelectedTaskId}
-              onTaskCreated={handleTaskCreated}
-              onTaskUpdated={handleTaskUpdated}
-              onTaskArchived={handleTaskArchived}
-            />
-          </section>
+            {/* Module 3: Focus Tasks List & Add/Edit Flow */}
+            <section aria-label="Focus Tasks" className="flex-1 flex flex-col w-full">
+              <RecentTasks
+                tasks={tasks}
+                loading={loadingTasks}
+                selectedTaskId={selectedTaskId}
+                onSelectTask={setSelectedTaskId}
+                onTaskCreated={handleTaskCreated}
+                onTaskUpdated={handleTaskUpdated}
+                onTaskArchived={handleTaskArchived}
+                className="h-full flex-1"
+              />
+            </section>
+          </div>
 
           {/* Module 4: Activity / Contribution Graph with Today's Total in Header */}
           <section
             aria-label="Activity & Focus History"
-            className="order-4 col-span-1 lg:col-span-12 w-full"
+            className="order-3 col-span-1 lg:col-span-12 w-full"
           >
             <ContributionGraph
               data={contributionData}

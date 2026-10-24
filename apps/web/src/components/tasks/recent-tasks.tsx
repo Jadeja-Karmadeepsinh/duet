@@ -71,7 +71,7 @@ export function RecentTasks({
       <section
         aria-labelledby="tasks-heading"
         className={cn(
-          "rounded-3xl border border-border bg-card p-5 sm:p-6 surface-elevation flex flex-col justify-between min-h-[440px] transition-all",
+          "rounded-3xl border border-border bg-card p-5 sm:p-6 surface-elevation flex flex-col justify-between min-h-[340px] sm:min-h-[380px] lg:min-h-[420px] transition-all",
           className
         )}
       >

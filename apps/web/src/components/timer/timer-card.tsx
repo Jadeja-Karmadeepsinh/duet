@@ -62,6 +62,7 @@ interface TimerCardProps {
   onTaskCreated: (task: TaskItem) => void;
   selectedTaskId: string | null;
   onSelectTaskId: (id: string | null) => void;
+  className?: string;
 }
 
 export function TimerCard({
@@ -73,6 +74,7 @@ export function TimerCard({
   onTaskCreated,
   selectedTaskId,
   onSelectTaskId,
+  className,
 }: TimerCardProps) {
   const [now, setNow] = useState<number>(() => Date.now());
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -337,21 +339,23 @@ export function TimerCard({
     <>
       <div
         className={cn(
-          "relative overflow-hidden rounded-3xl border border-border bg-card p-5 sm:p-8 surface-elevation transition-all flex flex-col justify-between min-h-[440px]",
-          currentSession?.status === "running" && "ring-1 ring-primary/40 shadow-sm"
+          "relative overflow-hidden rounded-3xl border border-border bg-card p-5 sm:p-8 surface-elevation transition-all flex flex-col justify-between min-h-[400px] sm:min-h-[440px] h-full",
+          currentSession?.status === "running" && "ring-1 ring-primary/40 shadow-sm",
+          className
         )}
       >
-        {/* Stale Running Recovery Warning Banner */}
-        {currentSession?.staleRunningWarning && (
-          <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-400">
-            <AlertTriangle className="size-4 shrink-0 text-amber-500" />
-            <div className="flex-1">
-              <strong>Session Recovery Notice:</strong> This session has been running for over 12 hours. You can complete or stop it without losing recorded focus time.
+        {/* Top Region: Stale Recovery Notice, Status Pill & Task Selector */}
+        <div className="flex flex-col items-center text-center w-full shrink-0">
+          {/* Stale Running Recovery Warning Banner */}
+          {currentSession?.staleRunningWarning && (
+            <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-400 w-full text-left">
+              <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+              <div className="flex-1">
+                <strong>Session Recovery Notice:</strong> This session has been running for over 12 hours. You can complete or stop it without losing recorded focus time.
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="flex flex-col items-center justify-center text-center w-full">
           {/* Top Status & Mode Caption */}
           <div className="flex items-center justify-center gap-2 mb-3 min-h-[26px]">
             <AnimatePresence mode="wait">
@@ -509,14 +513,15 @@ export function TimerCard({
               </div>
             )}
           </div>
+        </div>
 
-          {/* Central Timer Surface: SVG Ring (Countdown only) or Ambient Track (Stopwatch) */}
-          <div className="relative size-56 sm:size-64 flex items-center justify-center my-2 select-none">
-            <svg
-              className="size-full -rotate-90 transform"
-              viewBox="0 0 210 210"
-              aria-hidden="true"
-            >
+        {/* Middle Region: Central Timer Surface (Progress Ring & Tabular Digits) */}
+        <div className="relative size-56 sm:size-64 flex items-center justify-center my-auto mx-auto select-none shrink-0">
+          <svg
+            className="size-full -rotate-90 transform"
+            viewBox="0 0 210 210"
+            aria-hidden="true"
+          >
               {/* Background Track Circle */}
               <circle
                 cx="105"
@@ -575,7 +580,7 @@ export function TimerCard({
           </div>
 
           {/* Action Controls */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2.5 mt-4 w-full max-w-sm">
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2.5 mt-auto pt-4 w-full max-w-sm shrink-0">
             {!currentSession ? (
               /* Idle: Primary Start Focus Button */
               <Button
@@ -682,7 +687,6 @@ export function TimerCard({
               </Button>
             ) : null}
           </div>
-        </div>
       </div>
 
       {/* Target Reached Decision Dialog */}
