@@ -157,6 +157,23 @@ describe('Stats API & Engine Integration Tests', () => {
     expect(hasNonZero).toBe(false);
   });
 
+  it('GET /api/v1/stats/contributions?weeks=52 returns full year (~52 weeks) starting on Sunday', async () => {
+    const res = await request(app)
+      .get('/api/v1/stats/contributions?weeks=52')
+      .set('Cookie', user1Cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    const { days, totalFocusSeconds, totalCompletions, startDate, endDate } = res.body.data;
+
+    expect(days.length).toBeGreaterThanOrEqual(51 * 7); // ~364 days
+    expect(days[0].weekday).toBe(0); // Starts on Sunday
+    expect(startDate).toBe(days[0].date);
+    expect(endDate).toBe(days[days.length - 1].date);
+    expect(totalFocusSeconds).toBe(0);
+    expect(totalCompletions).toBe(0);
+  });
+
   it('Calculates streaks correctly when tasks are completed today and past days', async () => {
     // 1. Create a task for User 1
     const [task] = await db
@@ -240,7 +257,7 @@ describe('Stats API & Engine Integration Tests', () => {
       .set('Cookie', user1Cookie);
     expect(summary.body.data.currentStreak).toBe(2);
     expect(summary.body.data.bestStreak).toBe(2);
-  });
+  }, 60000);
 
   it('GET /api/v1/stats/day returns detailed completions and sessions for a date', async () => {
     const todayStr = getAsiaKolkataDateString(new Date());

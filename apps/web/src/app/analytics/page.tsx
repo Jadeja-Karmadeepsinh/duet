@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState, useTransition } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { RangeSelector, type AnalyticsRange } from "@/components/analytics/range-selector";
 import {
@@ -16,6 +17,7 @@ import {
   CategoryDistributionChart,
   type CategoryStat,
 } from "@/components/analytics/category-distribution-chart";
+import { AnalyticsHighlights } from "@/components/analytics/analytics-highlights";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, RefreshCw, Clock } from "lucide-react";
@@ -26,7 +28,7 @@ interface AnalyticsApiResponse {
   rangeLabel: string;
   startDate: string;
   endDate: string;
-  binning: "daily" | "monthly";
+  binning: "daily" | "weekly" | "monthly";
   summary: AnalyticsSummary;
   timeSeries: TimeSeriesPoint[];
   categories: CategoryStat[];
@@ -41,23 +43,34 @@ interface HistoricalSession {
   startedAt: string;
 }
 
-export default function AnalyticsPage() {
-  const [range, setRange] = useState<AnalyticsRange>("7d");
+const VALID_RANGES: AnalyticsRange[] = ["7d", "30d", "90d", "1y", "lifetime"];
+
+function AnalyticsContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+
+  const rawRange = searchParams.get("range") as AnalyticsRange;
+  const currentRange: AnalyticsRange = VALID_RANGES.includes(rawRange) ? rawRange : "7d";
+
   const [refreshKey, setRefreshKey] = useState(0);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsApiResponse | null>(null);
   const [recentSessions, setRecentSessions] = useState<HistoricalSession[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleRangeChange = (newRange: AnalyticsRange) => {
-    if (newRange !== range) {
-      setLoading(true);
-      setRange(newRange);
+    if (newRange !== currentRange) {
+      setIsFetching(true);
+      startTransition(() => {
+        router.replace(`/analytics?range=${newRange}`, { scroll: false });
+      });
     }
   };
 
   const handleRetry = () => {
-    setLoading(true);
+    setIsFetching(true);
     setError(null);
     setRefreshKey((k) => k + 1);
   };
@@ -68,7 +81,7 @@ export default function AnalyticsPage() {
     async function loadData() {
       try {
         const [analyticsRes, sessionsRes] = await Promise.all([
-          fetch(`/api/v1/analytics?range=${range}`),
+          fetch(`/api/v1/analytics?range=${currentRange}`),
           fetch("/api/v1/work-sessions?status=completed&limit=15"),
         ]);
 
@@ -102,30 +115,35 @@ export default function AnalyticsPage() {
         }
       } finally {
         if (!ignore) {
-          setLoading(false);
+          setInitialLoading(false);
+          setIsFetching(false);
         }
       }
     }
 
-    loadData();
+    void loadData();
 
     return () => {
       ignore = true;
     };
-  }, [range, refreshKey]);
+  }, [currentRange, refreshKey]);
+
+  const subtitle = analyticsData
+    ? `${analyticsData.rangeLabel} (${analyticsData.startDate} → ${analyticsData.endDate} IST)`
+    : "Focus trends, output & productivity velocity";
 
   return (
-    <AppShell title="Analytics" subtitle="Focus velocity, trends & productivity metrics">
+    <AppShell title="Analytics" subtitle={subtitle}>
       <div className="flex flex-col gap-6 max-w-6xl mx-auto pb-12">
         {/* Top Header / Range Selector */}
-        <div className="bg-card/60 backdrop-blur-md rounded-3xl border border-border p-4 sm:p-5 shadow-xs">
+        <div className="bg-card/70 backdrop-blur-md rounded-2xl sm:rounded-3xl border border-border p-3.5 sm:p-5 shadow-xs">
           <RangeSelector
-            range={range}
+            range={currentRange}
             onRangeChange={handleRangeChange}
             startDate={analyticsData?.startDate}
             endDate={analyticsData?.endDate}
             rangeLabel={analyticsData?.rangeLabel}
-            disabled={loading}
+            disabled={isFetching && !analyticsData}
           />
         </div>
 
@@ -148,26 +166,39 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        {/* Loading Skeletons */}
-        {loading && !analyticsData && (
+        {/* Initial Loading Skeletons */}
+        {initialLoading && !analyticsData && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Skeleton className="h-44 rounded-3xl" />
-              <Skeleton className="h-44 rounded-3xl" />
-              <Skeleton className="h-44 rounded-3xl" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <Skeleton className="h-28 rounded-2xl" />
+              <Skeleton className="h-28 rounded-2xl" />
+              <Skeleton className="h-28 rounded-2xl" />
+              <Skeleton className="h-28 rounded-2xl" />
             </div>
+            <Skeleton className="h-80 rounded-3xl" />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Skeleton className="h-80 rounded-3xl" />
-              <Skeleton className="h-80 rounded-3xl" />
+              <Skeleton className="h-72 rounded-3xl" />
+              <Skeleton className="h-72 rounded-3xl" />
             </div>
-            <Skeleton className="h-64 rounded-3xl" />
+            <Skeleton className="h-56 rounded-3xl" />
           </div>
         )}
 
-        {/* Analytics Content */}
+        {/* Analytics Content Area */}
         {analyticsData && (
-          <>
-            {/* Summary Metrics Cards */}
+          <div
+            className={`space-y-6 transition-opacity duration-200 ${
+              isFetching ? "opacity-75 pointer-events-none" : "opacity-100"
+            }`}
+          >
+            {/* Subtle reload indicator line */}
+            {isFetching && (
+              <div className="h-1 w-full bg-primary/20 rounded-full overflow-hidden">
+                <div className="h-full bg-primary animate-pulse w-full" />
+              </div>
+            )}
+
+            {/* 1. Summary Metrics Cards (Balanced 4-col row, 2x2 mobile) */}
             <section aria-label="Summary productivity metrics">
               <AnalyticsSummaryCards
                 summary={analyticsData.summary}
@@ -175,32 +206,40 @@ export default function AnalyticsPage() {
               />
             </section>
 
-            {/* Time Series Charts Grid */}
-            <section
-              aria-label="Activity over time"
-              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-            >
+            {/* 2. Dominant Focus Time Chart (Full-width) */}
+            <section aria-label="Focus time duration">
               <FocusTimeChart
                 data={analyticsData.timeSeries}
                 binning={analyticsData.binning}
                 totalFocusSeconds={analyticsData.summary.totalFocusSeconds}
               />
+            </section>
+
+            {/* 3. Side-by-side: Tasks Completed & Where Your Time Goes */}
+            <section
+              aria-label="Completions and category distribution"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6 min-w-0"
+            >
               <CompletionsChart
                 data={analyticsData.timeSeries}
                 binning={analyticsData.binning}
                 totalCompletions={analyticsData.summary.totalCompletions}
               />
-            </section>
-
-            {/* Category Distribution Chart */}
-            <section aria-label="Category breakdown">
               <CategoryDistributionChart
                 categories={analyticsData.categories}
                 totalFocusSeconds={analyticsData.summary.totalFocusSeconds}
               />
             </section>
 
-            {/* Recent Completed Sessions Log */}
+            {/* 4. Highlights & Records */}
+            <section aria-label="Personal records and highlights">
+              <AnalyticsHighlights
+                summary={analyticsData.summary}
+                recentSessions={recentSessions}
+              />
+            </section>
+
+            {/* 5. Recent Completed Sessions Log */}
             <section aria-labelledby="recent-sessions-heading" className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3
@@ -219,13 +258,13 @@ export default function AnalyticsPage() {
                   recentSessions.map((session) => (
                     <div
                       key={session.id}
-                      className="p-4 flex items-center justify-between gap-4 hover:bg-secondary/20 transition-colors"
+                      className="p-4 flex items-center justify-between gap-4 hover:bg-secondary/20 transition-colors text-xs"
                     >
                       <div className="space-y-1 min-w-0">
-                        <span className="text-sm font-medium text-foreground truncate block">
+                        <span className="text-sm font-medium text-foreground truncate block" title={session.taskTitleSnapshot}>
                           {session.taskTitleSnapshot}
                         </span>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 text-muted-foreground">
                           {session.categorySnapshot && (
                             <span className="font-medium text-foreground/80">
                               {session.categorySnapshot} •
@@ -236,6 +275,7 @@ export default function AnalyticsPage() {
                               day: "numeric",
                               month: "short",
                               year: "numeric",
+                              timeZone: "Asia/Kolkata",
                             })}
                           </span>
                         </div>
@@ -258,9 +298,38 @@ export default function AnalyticsPage() {
                 )}
               </div>
             </section>
-          </>
+          </div>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function AnalyticsSkeleton() {
+  return (
+    <AppShell title="Analytics" subtitle="Focus velocity, trends & productivity metrics">
+      <div className="flex flex-col gap-6 max-w-6xl mx-auto pb-12">
+        <Skeleton className="h-14 rounded-2xl" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+        </div>
+        <Skeleton className="h-80 rounded-3xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-72 rounded-3xl" />
+          <Skeleton className="h-72 rounded-3xl" />
+        </div>
+      </div>
+    </AppShell>
+  );
+}
+
+export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={<AnalyticsSkeleton />}>
+      <AnalyticsContent />
+    </Suspense>
   );
 }

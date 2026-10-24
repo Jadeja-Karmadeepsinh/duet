@@ -92,9 +92,9 @@ export function DayDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl space-y-4">
+      <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
         <DialogHeader className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0071e3]">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
             <Calendar className="size-3.5" />
             <span>Asia/Kolkata Calendar</span>
           </div>
@@ -149,11 +149,11 @@ export function DayDetailDialog({
                   {data.completions.map((comp) => (
                     <div
                       key={comp.id}
-                      className="p-2.5 rounded-xl border border-border bg-card flex items-center justify-between text-xs"
+                      className="p-2.5 rounded-xl border border-border/60 bg-secondary/30 hover:bg-secondary/50 flex items-center justify-between text-xs transition-colors"
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
-                        <span className="font-medium text-foreground truncate">
+                        <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className="font-medium text-foreground truncate break-words">
                           {comp.taskTitle}
                         </span>
                       </div>
@@ -163,7 +163,7 @@ export function DayDetailDialog({
                             {comp.category}
                           </Badge>
                         )}
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-[11px] text-muted-foreground tabular-nums">
                           {formatIndiaTime(new Date(comp.completedAt))}
                         </span>
                       </div>
@@ -171,7 +171,7 @@ export function DayDetailDialog({
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground italic py-1">
+                <p className="text-xs text-muted-foreground/80 italic py-2 text-center bg-secondary/20 rounded-xl border border-dashed border-border/40">
                   No tasks marked completed on this date.
                 </p>
               )}
@@ -187,10 +187,10 @@ export function DayDetailDialog({
                   {data.sessions.map((sess) => (
                     <div
                       key={sess.id}
-                      className="p-2.5 rounded-xl border border-border bg-card flex items-center justify-between text-xs"
+                      className="p-2.5 rounded-xl border border-border/60 bg-secondary/30 hover:bg-secondary/50 flex items-center justify-between text-xs transition-colors"
                     >
                       <div className="space-y-0.5 min-w-0 flex-1">
-                        <span className="font-medium text-foreground truncate block">
+                        <span className="font-medium text-foreground truncate block break-words">
                           {sess.taskTitle}
                         </span>
                         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -199,14 +199,14 @@ export function DayDetailDialog({
                           <span className="capitalize">{sess.status.replace("_", " ")}</span>
                         </div>
                       </div>
-                      <span className="font-mono text-xs font-semibold text-foreground shrink-0">
+                      <span className="font-mono text-xs font-semibold text-foreground shrink-0 tabular-nums">
                         {formatHoursMinutes(sess.trackedSeconds)}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground italic py-1">
+                <p className="text-xs text-muted-foreground/80 italic py-2 text-center bg-secondary/20 rounded-xl border border-dashed border-border/40">
                   No work sessions recorded on this date.
                 </p>
               )}

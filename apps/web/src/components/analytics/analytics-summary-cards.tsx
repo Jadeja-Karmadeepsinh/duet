@@ -5,13 +5,10 @@ import {
   Clock,
   CheckCircle2,
   Flame,
-  Trophy,
   ArrowUpRight,
   ArrowDownRight,
-  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { formatIndiaDate } from "@/lib/date";
 
 export interface LongestSessionRecord {
   id: string;
@@ -69,179 +66,129 @@ export function AnalyticsSummaryCards({ summary, rangeLabel }: AnalyticsSummaryC
       : 0;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* Card 1: Focus Time & Daily Averages */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-xs flex flex-col justify-between space-y-4">
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Clock className="size-3.5 text-[#0071e3]" />
-              <span>Total Focus Time</span>
-            </span>
-            {summary.priorPeriod && summary.priorPeriod.focusChangePercent !== null && (
-              <Badge
-                variant="secondary"
-                className={
-                  summary.priorPeriod.focusChangePercent >= 0
-                    ? "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 text-[11px] gap-0.5"
-                    : "text-rose-700 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 text-[11px] gap-0.5"
-                }
-              >
-                {summary.priorPeriod.focusChangePercent >= 0 ? (
-                  <ArrowUpRight className="size-3" />
-                ) : (
-                  <ArrowDownRight className="size-3" />
-                )}
-                <span>
-                  {summary.priorPeriod.focusChangePercent >= 0 ? "+" : ""}
-                  {summary.priorPeriod.focusChangePercent}% vs prior
-                </span>
-              </Badge>
-            )}
-          </div>
-
-          <div className="mt-3">
-            <span className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground font-mono tabular-nums">
-              {formatHoursMinutes(summary.totalFocusSeconds)}
-            </span>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              across {summary.calendarDaysCount} calendar days ({rangeLabel})
-            </p>
-          </div>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+      {/* 1. Total Focus Time */}
+      <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 truncate">
+            <Clock className="size-3.5 text-primary shrink-0" />
+            <span>Total Focus Time</span>
+          </span>
+          {summary.priorPeriod && summary.priorPeriod.focusChangePercent !== null && (
+            <Badge
+              variant="secondary"
+              className={
+                summary.priorPeriod.focusChangePercent >= 0
+                  ? "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 text-[10px] px-1.5 py-0 gap-0.5 shrink-0"
+                  : "text-rose-700 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 text-[10px] px-1.5 py-0 gap-0.5 shrink-0"
+              }
+            >
+              {summary.priorPeriod.focusChangePercent >= 0 ? (
+                <ArrowUpRight className="size-2.5" />
+              ) : (
+                <ArrowDownRight className="size-2.5" />
+              )}
+              <span>
+                {summary.priorPeriod.focusChangePercent >= 0 ? "+" : ""}
+                {summary.priorPeriod.focusChangePercent}%
+              </span>
+            </Badge>
+          )}
         </div>
 
-        <div className="pt-3 border-t border-border/50 grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <span className="text-muted-foreground block text-[11px]">Daily Calendar Avg</span>
-            <strong className="text-foreground font-mono">
-              {formatHoursMinutes(summary.averageFocusSecondsPerCalendarDay)}/day
-            </strong>
+        <div>
+          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-mono tabular-nums">
+            {formatHoursMinutes(summary.totalFocusSeconds)}
           </div>
-          <div>
-            <span className="text-muted-foreground block text-[11px]">Active Day Avg</span>
-            <strong className="text-foreground font-mono">
-              {formatHoursMinutes(summary.averageFocusSecondsPerActiveDay)}/day
-            </strong>
-          </div>
+          <p className="text-[11px] text-muted-foreground mt-1 truncate">
+            {summary.calendarDaysCount} calendar days ({rangeLabel})
+          </p>
         </div>
       </div>
 
-      {/* Card 2: Output & Active Consistency */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-xs flex flex-col justify-between space-y-4">
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <CheckCircle2 className="size-3.5 text-emerald-600" />
-              <span>Tasks Completed</span>
-            </span>
-            {summary.priorPeriod && summary.priorPeriod.completionsChangePercent !== null && (
-              <Badge
-                variant="secondary"
-                className={
-                  summary.priorPeriod.completionsChangePercent >= 0
-                    ? "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 text-[11px] gap-0.5"
-                    : "text-rose-700 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 text-[11px] gap-0.5"
-                }
-              >
-                {summary.priorPeriod.completionsChangePercent >= 0 ? (
-                  <ArrowUpRight className="size-3" />
-                ) : (
-                  <ArrowDownRight className="size-3" />
-                )}
-                <span>
-                  {summary.priorPeriod.completionsChangePercent >= 0 ? "+" : ""}
-                  {summary.priorPeriod.completionsChangePercent}% vs prior
-                </span>
-              </Badge>
-            )}
-          </div>
+      {/* 2. Tasks Completed */}
+      <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 truncate">
+            <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>Tasks Completed</span>
+          </span>
+          {summary.priorPeriod && summary.priorPeriod.completionsChangePercent !== null && (
+            <Badge
+              variant="secondary"
+              className={
+                summary.priorPeriod.completionsChangePercent >= 0
+                  ? "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 text-[10px] px-1.5 py-0 gap-0.5 shrink-0"
+                  : "text-rose-700 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 text-[10px] px-1.5 py-0 gap-0.5 shrink-0"
+              }
+            >
+              {summary.priorPeriod.completionsChangePercent >= 0 ? (
+                <ArrowUpRight className="size-2.5" />
+              ) : (
+                <ArrowDownRight className="size-2.5" />
+              )}
+              <span>
+                {summary.priorPeriod.completionsChangePercent >= 0 ? "+" : ""}
+                {summary.priorPeriod.completionsChangePercent}%
+              </span>
+            </Badge>
+          )}
+        </div>
 
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground font-mono tabular-nums">
-              {summary.totalCompletions}
-            </span>
-            <span className="text-xs text-muted-foreground">completed tasks</span>
+        <div>
+          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-mono tabular-nums">
+            {summary.totalCompletions}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-1 truncate">
             {summary.activeDaysCount} of {summary.calendarDaysCount} days active ({activeRate}%)
           </p>
         </div>
+      </div>
 
-        <div className="pt-3 border-t border-border/50 grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <span className="text-muted-foreground block text-[11px]">Current Streak</span>
-            <div className="flex items-center gap-1 font-semibold text-foreground">
-              <Flame className="size-3.5 fill-amber-500 text-amber-500" />
-              <span>{summary.currentStreak} {summary.currentStreak === 1 ? "day" : "days"}</span>
-            </div>
+      {/* 3. Daily Average */}
+      <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 truncate">
+            <Clock className="size-3.5 text-primary shrink-0" />
+            <span>Daily Average</span>
+          </span>
+          <span className="text-[10px] font-mono text-muted-foreground/80 bg-secondary/80 px-1.5 py-0.5 rounded">
+            Active
+          </span>
+        </div>
+
+        <div>
+          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-mono tabular-nums">
+            {formatHoursMinutes(summary.averageFocusSecondsPerActiveDay)}
           </div>
-          <div>
-            <span className="text-muted-foreground block text-[11px]">Longest Streak</span>
-            <div className="flex items-center gap-1 font-semibold text-foreground">
-              <Trophy className="size-3.5 text-purple-600" />
-              <span>{summary.longestStreak} {summary.longestStreak === 1 ? "day" : "days"}</span>
-            </div>
-          </div>
+          <p className="text-[11px] text-muted-foreground mt-1 truncate">
+            <span className="font-mono">{formatHoursMinutes(summary.averageFocusSecondsPerCalendarDay)}</span> / calendar day
+          </p>
         </div>
       </div>
 
-      {/* Card 3: Highlights & Records */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-xs flex flex-col justify-between space-y-4">
-        <div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Sparkles className="size-3.5 text-purple-600" />
-              <span>Personal Records</span>
-            </span>
-            <Badge variant="outline" className="text-[10px] font-normal px-2 py-0">
-              In Range
-            </Badge>
-          </div>
-
-          <div className="mt-3 space-y-2.5 text-xs">
-            {/* Most focus day */}
-            <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/40 border border-border/40">
-              <div className="min-w-0">
-                <span className="text-[11px] text-muted-foreground block">Peak Focus Day</span>
-                <span className="font-semibold text-foreground truncate block">
-                  {summary.mostFocusDay
-                    ? formatIndiaDate(new Date(`${summary.mostFocusDay.date}T12:00:00Z`))
-                    : "No activity yet"}
-                </span>
-              </div>
-              <span className="font-mono font-bold text-foreground shrink-0 text-sm">
-                {summary.mostFocusDay ? formatHoursMinutes(summary.mostFocusDay.focusSeconds) : "—"}
-              </span>
-            </div>
-
-            {/* Most completions day */}
-            <div className="flex items-center justify-between p-2 rounded-xl bg-secondary/40 border border-border/40">
-              <div className="min-w-0">
-                <span className="text-[11px] text-muted-foreground block">Peak Output Day</span>
-                <span className="font-semibold text-foreground truncate block">
-                  {summary.mostCompletionsDay
-                    ? formatIndiaDate(new Date(`${summary.mostCompletionsDay.date}T12:00:00Z`))
-                    : "No completions yet"}
-                </span>
-              </div>
-              <span className="font-mono font-bold text-foreground shrink-0 text-sm">
-                {summary.mostCompletionsDay ? `${summary.mostCompletionsDay.completionCount} tasks` : "—"}
-              </span>
-            </div>
-          </div>
+      {/* 4. Current Streak */}
+      <div className="rounded-2xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3">
+        <div className="flex items-center justify-between gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 truncate">
+            <Flame className="size-3.5 text-amber-500 fill-amber-500 shrink-0" />
+            <span>Current Streak</span>
+          </span>
+          <span className="text-[10px] font-mono text-muted-foreground/80 bg-secondary/80 px-1.5 py-0.5 rounded">
+            IST
+          </span>
         </div>
 
-        {/* Longest Session Record */}
-        <div className="pt-2 border-t border-border/50 text-xs">
-          <span className="text-muted-foreground block text-[11px]">Longest Individual Session</span>
-          <div className="flex items-center justify-between mt-0.5">
-            <span className="font-medium text-foreground truncate max-w-[180px]">
-              {summary.longestSession ? summary.longestSession.taskTitle : "No recorded sessions"}
-            </span>
-            <span className="font-mono font-semibold text-foreground shrink-0">
-              {summary.longestSession ? formatHoursMinutes(summary.longestSession.trackedSeconds) : "—"}
+        <div>
+          <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-mono tabular-nums flex items-baseline gap-1.5">
+            <span>{summary.currentStreak}</span>
+            <span className="text-xs font-normal font-sans text-muted-foreground">
+              {summary.currentStreak === 1 ? "day" : "days"}
             </span>
           </div>
+          <p className="text-[11px] text-muted-foreground mt-1 truncate">
+            Best: <span className="font-mono font-medium text-foreground">{summary.longestStreak}</span> {summary.longestStreak === 1 ? "day" : "days"}
+          </p>
         </div>
       </div>
     </div>

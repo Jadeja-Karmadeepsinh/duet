@@ -184,13 +184,13 @@ export class TimerService {
   }
 
   /**
-   * Retrieves the current active or awaiting-decision session for a user.
+   * Retrieves the current active (running, awaiting-decision, or paused) session for a user.
    * If a running countdown has expired, reconciles it into awaiting_decision.
    */
   async getCurrentSession(userId: string): Promise<EnrichedWorkSession | null> {
     const now = this.clock.now();
 
-    // Look for a session in 'running' or 'awaiting_decision'
+    // 1. Look for a session in 'running' or 'awaiting_decision' first
     const candidateSessions = await db
       .select()
       .from(workSessions)
@@ -203,42 +203,54 @@ export class TimerService {
       .orderBy(desc(workSessions.createdAt))
       .limit(1);
 
-    if (candidateSessions.length === 0) {
-      return null;
+    if (candidateSessions.length > 0) {
+      let session = candidateSessions[0];
+
+      // Find if there is an open segment
+      const [openSegment] = await db
+        .select()
+        .from(workSessionSegments)
+        .where(
+          and(
+            eq(workSessionSegments.workSessionId, session.id),
+            isNull(workSessionSegments.endedAt)
+          )
+        )
+        .limit(1);
+
+      // If running countdown, check if reconciliation is required
+      if (session.status === 'running' && session.mode === 'countdown' && openSegment) {
+        const target = session.targetDurationSeconds ?? 0;
+        const tracked = session.trackedSeconds ?? 0;
+        const remainingNeeded = target - tracked;
+        const segmentDuration = Math.max(0, Math.floor((now.getTime() - openSegment.startedAt.getTime()) / 1000));
+
+        if (segmentDuration >= remainingNeeded) {
+          // Reconcile within transaction
+          const result = await db.transaction(async (tx) => {
+            return this.reconcileExpiredCountdownInTx(tx, session, openSegment, now);
+          });
+          session = result.session;
+          return enrichSession(session, null, now);
+        }
+      }
+
+      return enrichSession(session, openSegment, now);
     }
 
-    let session = candidateSessions[0];
-
-    // Find if there is an open segment
-    const [openSegment] = await db
+    // 2. If no running or awaiting_decision session, check if the most recent session is paused
+    const [latestSession] = await db
       .select()
-      .from(workSessionSegments)
-      .where(
-        and(
-          eq(workSessionSegments.workSessionId, session.id),
-          isNull(workSessionSegments.endedAt)
-        )
-      )
+      .from(workSessions)
+      .where(eq(workSessions.userId, userId))
+      .orderBy(desc(workSessions.updatedAt))
       .limit(1);
 
-    // If running countdown, check if reconciliation is required
-    if (session.status === 'running' && session.mode === 'countdown' && openSegment) {
-      const target = session.targetDurationSeconds ?? 0;
-      const tracked = session.trackedSeconds ?? 0;
-      const remainingNeeded = target - tracked;
-      const segmentDuration = Math.max(0, Math.floor((now.getTime() - openSegment.startedAt.getTime()) / 1000));
-
-      if (segmentDuration >= remainingNeeded) {
-        // Reconcile within transaction
-        const result = await db.transaction(async (tx) => {
-          return this.reconcileExpiredCountdownInTx(tx, session, openSegment, now);
-        });
-        session = result.session;
-        return enrichSession(session, null, now);
-      }
+    if (latestSession && latestSession.status === 'paused') {
+      return enrichSession(latestSession, null, now);
     }
 
-    return enrichSession(session, openSegment, now);
+    return null;
   }
 
   /**

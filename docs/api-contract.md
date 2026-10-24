@@ -243,7 +243,7 @@ All work session routes require authentication via HttpOnly `focus_session` cook
 - **Idempotency**: `complete`, `stop`, and `expire` are fully idempotent. Repeated completion calls return the existing session and completion without duplicate rows.
 
 ### `GET /api/v1/work-sessions/current`
-Retrieves the currently active (`running` or `awaiting_decision`) session for the authenticated profile with server-derived metrics. Reconciles expired countdown sessions on fetch/reload.
+Retrieves the currently active (`running`, `paused`, or `awaiting_decision`) session for the authenticated profile with server-derived metrics. When paused, metrics reflect accumulated tracked seconds and activeSegmentStartedAt is null. Reconciles expired countdown sessions on fetch/reload.
 - **Response** (`200 OK` - Active session):
 ```json
 {
@@ -398,7 +398,7 @@ Returns today's active focus time, completed tasks count, daily goal seconds, an
 ```
 
 ### `GET /api/v1/stats/contributions`
-Returns approximately 26 weeks of calendar day intensity cells, aligned to Sunday, for the GitHub-style contribution graph.
+Returns up to 52 weeks of calendar day intensity cells (default 26, web dashboard requests 52 for full-year span), aligned to Sunday, for the GitHub-style contribution graph.
 - **Auth**: Required
 - **Query**: `weeks` (optional, 1..52, default 26)
 - **Response** (`200 OK`):

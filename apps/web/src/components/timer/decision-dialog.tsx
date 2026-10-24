@@ -46,7 +46,7 @@ export function DecisionDialog({
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         showCloseButton={false}
-        className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl space-y-5"
+        className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl space-y-5 max-h-[85vh] overflow-y-auto"
       >
         <DialogHeader className="space-y-2 text-center items-center">
           <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
@@ -78,7 +78,7 @@ export function DecisionDialog({
           {/* 1. Mark Completed (Primary) */}
           <Button
             type="button"
-            className="w-full bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
             disabled={loadingAction !== null}
             onClick={onComplete}
           >

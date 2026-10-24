@@ -23,6 +23,9 @@ import {
 import { DecisionDialog } from "./decision-dialog";
 import { AddTaskDialog } from "../tasks/add-task-dialog";
 import { cn } from "@/lib/utils";
+import { formatTimerDisplay } from "@/lib/date";
+import { toast } from "sonner";
+import { motion, AnimatePresence, statusPillVariants } from "@/lib/motion";
 
 export interface ActiveSession {
   id: string;
@@ -38,6 +41,7 @@ export interface ActiveSession {
   isExpired: boolean;
   staleRunningWarning: boolean;
   activeSegmentStartedAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface TaskItem {
@@ -58,6 +62,7 @@ interface TimerCardProps {
   onTaskCreated: (task: TaskItem) => void;
   selectedTaskId: string | null;
   onSelectTaskId: (id: string | null) => void;
+  className?: string;
 }
 
 export function TimerCard({
@@ -69,9 +74,11 @@ export function TimerCard({
   onTaskCreated,
   selectedTaskId,
   onSelectTaskId,
+  className,
 }: TimerCardProps) {
   const [now, setNow] = useState<number>(() => Date.now());
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [completedSuccess, setCompletedSuccess] = useState(false);
   const [decisionDismissed, setDecisionDismissed] = useState(false);
   const [showAddTaskDialog, setShowAddTaskDialog] = useState(false);
   const expiredCallInProgressRef = useRef(false);
@@ -103,13 +110,13 @@ export function TimerCard({
         }
       }
     } catch {
-      // Ignore network error; fallback on next polling reconcile
+      // Ignore network error; fallback on polling reconcile
     } finally {
       expiredCallInProgressRef.current = false;
     }
   }, [onSessionUpdated]);
 
-  // Smooth live ticking timer
+  // Live ticking timer
   useEffect(() => {
     if (currentSession?.status !== "running") return;
     const interval = setInterval(() => {
@@ -162,33 +169,18 @@ export function TimerCard({
 
   const showDecisionDialog = currentSession?.status === "awaiting_decision" && !decisionDismissed;
 
-  // Format MM:SS or HH:MM:SS
-  const formatTime = (totalSec: number) => {
-    const hrs = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    const secs = totalSec % 60;
-
-    if (hrs > 0) {
-      return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  // Progress ring math
-  const radius = 100;
-  const strokeWidth = 8;
+  // Progress ring math (Strictly for Countdown mode, not fake for stopwatch)
+  const radius = 95;
+  const strokeWidth = 7;
   const circumference = 2 * Math.PI * radius;
 
   let progress = 0;
-  if (currentSession) {
-    if (currentSession.mode === "countdown" && currentSession.targetDurationSeconds) {
-      const totalElapsed = currentSession.targetDurationSeconds - displaySeconds;
-      progress = Math.min(1, Math.max(0, totalElapsed / currentSession.targetDurationSeconds));
-    } else if (currentSession.mode === "stopwatch") {
-      // Stopwatch: cyclical 60-second sweep
-      progress = (displaySeconds % 60) / 60;
-    }
-  } else if (activeTask?.plannedDurationSeconds) {
+  const isCountdown = currentSession ? currentSession.mode === "countdown" : !!activeTask?.plannedDurationSeconds;
+
+  if (currentSession && currentSession.mode === "countdown" && currentSession.targetDurationSeconds) {
+    const totalElapsed = currentSession.targetDurationSeconds - displaySeconds;
+    progress = Math.min(1, Math.max(0, totalElapsed / currentSession.targetDurationSeconds));
+  } else if (!currentSession && activeTask?.plannedDurationSeconds) {
     progress = 0; // ready state
   }
 
@@ -196,8 +188,8 @@ export function TimerCard({
 
   // API Action Mutators
   const handleStartSession = async () => {
-    if (!activeTask) {
-      setShowAddTaskDialog(true);
+    if (!activeTask || pendingAction) {
+      if (!activeTask) setShowAddTaskDialog(true);
       return;
     }
 
@@ -212,16 +204,19 @@ export function TimerCard({
       if (res.ok && json.success) {
         onSessionUpdated(json.data.session);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to start session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle network error
+      toast.error("Network error while starting session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handlePauseSession = async () => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction("pause");
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/pause`, {
@@ -231,16 +226,19 @@ export function TimerCard({
       if (res.ok && json.success) {
         onSessionUpdated(json.data.session);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to pause session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while pausing session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleResumeSession = async () => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction("resume");
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/resume`, {
@@ -250,16 +248,19 @@ export function TimerCard({
       if (res.ok && json.success) {
         onSessionUpdated(json.data.session);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to resume session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while resuming session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleCompleteSession = async () => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction("complete");
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/complete`, {
@@ -267,19 +268,27 @@ export function TimerCard({
       });
       const json = await res.json();
       if (res.ok && json.success) {
-        onSessionUpdated(null);
-        setDecisionDismissed(true);
+        setCompletedSuccess(true);
+        setTimeout(() => {
+          setCompletedSuccess(false);
+          onSessionUpdated(null);
+          setDecisionDismissed(true);
+          onStatsRefresh();
+        }, 400);
+        return;
+      } else {
+        toast.error(json?.error?.message || "Failed to complete session.");
         onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while completing session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleStopSession = async () => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction("stop");
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/stop`, {
@@ -290,16 +299,19 @@ export function TimerCard({
         onSessionUpdated(null);
         setDecisionDismissed(true);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to end session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while ending session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleExtendSession = async (extensionSeconds: number) => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction(`extend-${extensionSeconds}`);
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/extend`, {
@@ -312,9 +324,12 @@ export function TimerCard({
         onSessionUpdated(json.data.session);
         setDecisionDismissed(true);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to extend session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while extending session.");
     } finally {
       setPendingAction(null);
     }
@@ -324,66 +339,103 @@ export function TimerCard({
     <>
       <div
         className={cn(
-          "relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 md:p-10 shadow-sm transition-all",
-          currentSession?.status === "running" && "ring-1 ring-[#0071e3]/30"
+          "relative overflow-hidden rounded-3xl border border-border bg-card p-5 sm:p-6 surface-elevation transition-all flex flex-col items-center justify-between min-h-[380px] sm:min-h-[420px] h-full",
+          currentSession?.status === "running" && "ring-1 ring-primary/40 shadow-sm",
+          className
         )}
       >
-        {/* Stale Running Recovery Warning Banner */}
-        {currentSession?.staleRunningWarning && (
-          <div className="mb-6 flex items-center gap-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-400">
-            <AlertTriangle className="size-4 shrink-0 text-amber-500" />
-            <div className="flex-1">
-              <strong>Session Recovery Notice:</strong> This session has been running continuously for over 12 hours. You can safely complete or stop it without losing recorded focus time.
+        {/* Top Region: Stale Recovery Notice, Status Pill & Task Selector */}
+        <div className="flex flex-col items-center text-center w-full shrink-0">
+          {/* Stale Running Recovery Warning Banner */}
+          {currentSession?.staleRunningWarning && (
+            <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-400 w-full text-left">
+              <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+              <div className="flex-1">
+                <strong>Session Recovery Notice:</strong> This session has been running for over 12 hours. You can complete or stop it without losing recorded focus time.
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="flex flex-col items-center justify-center text-center">
-          {/* Top Status & Mode Indicator */}
-          <div className="flex items-center gap-2 mb-4">
-            {currentSession ? (
-              <>
-                <Badge
-                  variant={currentSession.status === "running" ? "default" : "secondary"}
-                  className={cn(
-                    "text-[11px] font-medium uppercase tracking-wider px-2.5 py-0.5",
-                    currentSession.status === "running" && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 animate-pulse",
-                    currentSession.status === "paused" && "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
-                    currentSession.status === "awaiting_decision" && "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25"
-                  )}
+          {/* Top Status & Mode Caption */}
+          <div className="flex items-center justify-center gap-2 mb-2 min-h-[24px]">
+            <AnimatePresence mode="wait">
+              {currentSession ? (
+                <motion.div
+                  key={`session-${currentSession.status}-${currentSession.mode}`}
+                  variants={statusPillVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="flex items-center gap-2"
                 >
-                  {currentSession.status.replace("_", " ")}
-                </Badge>
-                <span className="text-xs text-muted-foreground font-medium">•</span>
-                <span className="text-xs font-semibold text-muted-foreground capitalize">
-                  {currentSession.mode}
-                </span>
-              </>
-            ) : (
-              <>
-                <Badge variant="outline" className="text-[11px] font-normal px-2.5 py-0.5 text-muted-foreground">
-                  Ready to Focus
-                </Badge>
-                {activeTask?.plannedDurationSeconds ? (
-                  <span className="text-xs text-muted-foreground font-medium">
-                    • {Math.round(activeTask.plannedDurationSeconds / 60)}m Countdown
+                  <Badge
+                    variant={currentSession.status === "running" ? "default" : "secondary"}
+                    className={cn(
+                      "text-[10.5px] font-semibold uppercase tracking-wider px-2.5 py-0.5",
+                      currentSession.status === "running" &&
+                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25",
+                      currentSession.status === "paused" &&
+                        "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
+                      currentSession.status === "awaiting_decision" &&
+                        "bg-primary/15 text-primary border border-primary/25"
+                    )}
+                  >
+                    {currentSession.status === "running" ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Running
+                      </span>
+                    ) : currentSession.status === "paused" ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-amber-500" />
+                        Paused
+                      </span>
+                    ) : (
+                      currentSession.status.replace("_", " ")
+                    )}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground/60">•</span>
+                  <span className="text-xs font-semibold text-muted-foreground capitalize">
+                    {currentSession.mode}
                   </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground font-medium">• Stopwatch</span>
-                )}
-              </>
-            )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="session-ready"
+                  variants={statusPillVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="flex items-center gap-2"
+                >
+                  <Badge
+                    variant="outline"
+                    className="text-[10.5px] font-semibold uppercase tracking-wider px-2.5 py-0.5 text-muted-foreground"
+                  >
+                    Ready
+                  </Badge>
+                  <span className="text-xs text-muted-foreground/60">•</span>
+                  {activeTask?.plannedDurationSeconds ? (
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {Math.round(activeTask.plannedDurationSeconds / 60)}m Countdown
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground font-medium">Stopwatch</span>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Task Selector or Active Task Title */}
-          <div className="mb-6 max-w-md w-full">
+          <div className="mb-1 sm:mb-2 max-w-md w-full min-h-[34px] flex items-center justify-center">
             {currentSession ? (
-              <div className="flex flex-col items-center gap-1.5">
-                <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate max-w-xs sm:max-w-md">
+              <div className="flex flex-col items-center gap-1">
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground truncate max-w-xs sm:max-w-md">
                   {currentSession.taskTitleSnapshot}
-                </h3>
+                </h2>
                 {currentSession.categorySnapshot && (
-                  <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-secondary text-muted-foreground">
                     {currentSession.categorySnapshot}
                   </span>
                 )}
@@ -391,102 +443,132 @@ export function TimerCard({
             ) : (
               <div className="flex items-center justify-center gap-2">
                 {tasks.length > 0 ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          className="rounded-2xl px-4 py-2 text-sm font-semibold border-border hover:bg-secondary/60 flex items-center gap-2 max-w-[280px] sm:max-w-[340px] truncate"
-                        >
-                          <span className="truncate">{activeTask?.title || "Select a task"}</span>
-                          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent className="w-72 rounded-2xl p-1.5 shadow-lg border border-border">
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                        Select Focus Task
-                      </div>
-                      {tasks.map((task) => (
+                  <div className="flex items-center gap-2 max-w-full">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="outline"
+                            className="rounded-xl px-3.5 py-1.5 text-xs font-semibold border-border hover:bg-secondary/60 flex items-center gap-2 max-w-[220px] sm:max-w-[320px] min-w-0 truncate"
+                          >
+                            <span className="truncate min-w-0">{activeTask?.title || "Select focus task"}</span>
+                            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent className="w-72 rounded-xl p-1.5 shadow-lg border border-border z-50">
+                        <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase">
+                          Select Focus Task
+                        </div>
+                        {tasks.map((task) => (
+                          <DropdownMenuItem
+                            key={task.id}
+                            onClick={() => onSelectTaskId(task.id)}
+                            className={cn(
+                              "rounded-lg px-2.5 py-1.5 text-xs flex items-center justify-between cursor-pointer",
+                              selectedTaskId === task.id && "bg-secondary font-semibold"
+                            )}
+                          >
+                            <span className="truncate">{task.title}</span>
+                            <span className="text-[11px] text-muted-foreground shrink-0 ml-2">
+                              {task.plannedDurationSeconds
+                                ? `${Math.round(task.plannedDurationSeconds / 60)}m`
+                                : "Stopwatch"}
+                            </span>
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator className="my-1" />
                         <DropdownMenuItem
-                          key={task.id}
-                          onClick={() => onSelectTaskId(task.id)}
-                          className={cn(
-                            "rounded-xl px-2.5 py-2 text-xs flex items-center justify-between cursor-pointer",
-                            selectedTaskId === task.id && "bg-secondary font-semibold"
-                          )}
+                          onClick={() => setShowAddTaskDialog(true)}
+                          className="rounded-lg px-2.5 py-1.5 text-xs text-primary font-medium flex items-center gap-2 cursor-pointer"
                         >
-                          <span className="truncate">{task.title}</span>
-                          <span className="text-[11px] text-muted-foreground shrink-0 ml-2">
-                            {task.plannedDurationSeconds ? `${Math.round(task.plannedDurationSeconds / 60)}m` : "Stopwatch"}
-                          </span>
+                          <Plus className="size-3.5" />
+                          <span>New Task</span>
                         </DropdownMenuItem>
-                      ))}
-                      <DropdownMenuSeparator className="my-1" />
-                      <DropdownMenuItem
-                        onClick={() => setShowAddTaskDialog(true)}
-                        className="rounded-xl px-2.5 py-2 text-xs text-[#0071e3] font-medium flex items-center gap-2 cursor-pointer"
-                      >
-                        <Plus className="size-3.5" />
-                        <span>Create New Task</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setShowAddTaskDialog(true)}
+                      aria-label="Create new task"
+                      title="Create new task"
+                      className="text-muted-foreground hover:text-foreground shrink-0"
+                    >
+                      <Plus className="size-3.5" />
+                    </Button>
+                  </div>
                 ) : (
                   <Button
                     variant="outline"
                     onClick={() => setShowAddTaskDialog(true)}
-                    className="rounded-2xl px-4 py-2 text-xs font-medium border-dashed border-border hover:border-[#0071e3] text-muted-foreground hover:text-[#0071e3] flex items-center gap-1.5"
+                    className="rounded-xl px-3.5 py-2 text-xs font-medium border-dashed border-border hover:border-primary text-muted-foreground hover:text-primary flex items-center gap-1.5"
                   >
                     <Plus className="size-3.5" />
-                    <span>Create your first task</span>
+                    <span>Create first task</span>
                   </Button>
                 )}
               </div>
             )}
           </div>
+        </div>
 
-          {/* Central Timer Surface with Progress Ring */}
-          <div className="relative size-64 sm:size-72 flex items-center justify-center mb-8">
+        {/* Middle Region: Central Timer Surface (Progress Ring & Tabular Digits) */}
+        <div className="relative my-auto flex items-center justify-center select-none shrink-0 py-2 sm:py-3 w-full">
+          <div className="relative size-60 sm:size-64 md:size-72 lg:size-[280px] flex items-center justify-center select-none shrink-0">
             <svg
               className="size-full -rotate-90 transform"
-              viewBox="0 0 220 220"
+              viewBox="0 0 210 210"
               aria-hidden="true"
             >
               {/* Background Track Circle */}
               <circle
-                cx="110"
-                cy="110"
+                cx="105"
+                cy="105"
                 r={radius}
                 stroke="currentColor"
                 strokeWidth={strokeWidth}
                 fill="transparent"
-                className="text-border/40 dark:text-secondary"
+                className="text-border/40"
               />
-              {/* Active Progress Ring */}
-              <circle
-                cx="110"
-                cy="110"
-                r={radius}
-                stroke={currentSession?.status === "paused" ? "#f59e0b" : "#0071e3"}
-                strokeWidth={strokeWidth}
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                fill="transparent"
-                className="transition-all duration-500 ease-out"
-              />
+              {/* Active Progress Ring - strictly for Countdown mode */}
+              {isCountdown && (
+                <circle
+                  cx="105"
+                  cy="105"
+                  r={radius}
+                  stroke="currentColor"
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  fill="transparent"
+                  className={cn(
+                    "transition-all duration-500 ease-out",
+                    currentSession?.status === "paused" ? "text-amber-500" : "text-primary"
+                  )}
+                />
+              )}
             </svg>
 
-            {/* Digits Surface */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
+            {/* Fixed-Width Tabular Digits Surface */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-4 select-none min-w-0 pointer-events-none">
               <span
-                className="font-mono text-5xl sm:text-6xl font-bold tracking-tight text-foreground tabular-nums drop-shadow-xs"
+                className={cn(
+                  "font-mono font-bold tracking-tight text-foreground tabular-nums drop-shadow-xs transition-all duration-200 select-none",
+                  displaySeconds >= 360000
+                    ? "text-2xl sm:text-[28px] md:text-[34px]"
+                    : displaySeconds >= 3600
+                    ? "text-[28px] sm:text-[34px] md:text-[40px] lg:text-[44px]"
+                    : "text-[42px] sm:text-[52px] md:text-[64px] lg:text-[68px]"
+                )}
                 aria-live="polite"
               >
-                {formatTime(displaySeconds)}
+                {formatTimerDisplay(displaySeconds)}
               </span>
-              <span className="text-xs font-medium text-muted-foreground mt-1 tracking-wide uppercase">
+              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground mt-1.5 tracking-wider uppercase truncate max-w-[160px]">
                 {currentSession?.mode === "countdown"
                   ? currentSession.status === "awaiting_decision"
                     ? "Time's Up"
@@ -497,109 +579,131 @@ export function TimerCard({
               </span>
             </div>
           </div>
+        </div>
 
-          {/* Action Controls */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {!currentSession ? (
-              /* No active session: Start Focus Button */
-              <Button
-                type="button"
-                size="lg"
-                disabled={pendingAction !== null || loadingSession}
-                onClick={handleStartSession}
-                className="rounded-2xl px-8 py-6 text-base font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98] flex items-center gap-2.5"
-              >
-                <Play className="size-5 fill-white" />
-                <span>Start Focus</span>
-              </Button>
-            ) : currentSession.status === "running" ? (
-              /* Running Session: Pause, Complete, Stop */
-              <>
+        {/* Action Controls Region - Uniform 44px (h-11) Height across All States */}
+        <div className="w-full max-w-sm mx-auto shrink-0 flex items-center justify-center min-h-[44px]">
+          {!currentSession ? (
+            /* Idle: Primary Start Focus Button (Centered single action) */
+            <Button
+              type="button"
+              disabled={pendingAction !== null || loadingSession}
+              onClick={handleStartSession}
+              className="w-full max-w-[280px] h-11 rounded-xl px-6 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2 transition-all"
+            >
+              <Play className="size-4 fill-current" />
+              <span>Start Focus</span>
+            </Button>
+          ) : currentSession.status === "running" ? (
+            /* Running Session: Centered Pause + Finish pair with balanced End action */
+            <div className="w-full max-w-sm mx-auto grid grid-cols-[44px_1fr_44px] items-center gap-2 sm:gap-2.5 h-11">
+              {/* Symmetrical Left Spacer to ensure exact geometric horizontal center */}
+              <div className="size-11 shrink-0 pointer-events-none" aria-hidden="true" />
+
+              {/* Centered Primary Action Pair (Pause + Finish) */}
+              <div className="flex items-center justify-center gap-2 sm:gap-2.5 w-full">
                 <Button
                   type="button"
                   variant="outline"
-                  size="lg"
                   disabled={pendingAction !== null}
                   onClick={handlePauseSession}
-                  className="rounded-2xl px-6 py-5 text-sm font-semibold border-border hover:bg-secondary transition-all flex items-center gap-2"
+                  className="flex-1 max-w-[140px] h-11 rounded-xl text-xs sm:text-sm font-semibold border-border hover:bg-secondary/60 press-scale flex items-center justify-center gap-2 transition-all px-2.5 sm:px-4"
                 >
                   <Pause className="size-4" />
                   <span>Pause</span>
                 </Button>
                 <Button
                   type="button"
-                  size="lg"
                   disabled={pendingAction !== null}
                   onClick={handleCompleteSession}
-                  className="rounded-2xl px-7 py-5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all flex items-center gap-2"
+                  className={cn(
+                    "flex-1 max-w-[140px] h-11 rounded-xl text-xs sm:text-sm font-semibold text-white shadow-xs press-scale flex items-center justify-center gap-2 transition-all px-2.5 sm:px-4",
+                    completedSuccess
+                      ? "bg-emerald-500 scale-[1.02]"
+                      : "bg-emerald-600 hover:bg-emerald-500"
+                  )}
                 >
-                  <CheckCircle2 className="size-4.5" />
-                  <span>Complete</span>
+                  <CheckCircle2 className="size-4" />
+                  <span>{completedSuccess ? "Finished!" : "Finish"}</span>
                 </Button>
+              </div>
+
+              {/* End Session Action */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={pendingAction !== null}
+                onClick={handleStopSession}
+                aria-label="End session"
+                title="End session"
+                className="size-11 shrink-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 press-scale flex items-center justify-center transition-all"
+              >
+                <Square className="size-3.5" />
+              </Button>
+            </div>
+          ) : currentSession.status === "paused" ? (
+            /* Paused Session: Centered Resume + Finish pair with balanced End action */
+            <div className="w-full max-w-sm mx-auto grid grid-cols-[44px_1fr_44px] items-center gap-2 sm:gap-2.5 h-11">
+              {/* Symmetrical Left Spacer to ensure exact geometric horizontal center */}
+              <div className="size-11 shrink-0 pointer-events-none" aria-hidden="true" />
+
+              {/* Centered Primary Action Pair (Resume + Finish) */}
+              <div className="flex items-center justify-center gap-2 sm:gap-2.5 w-full">
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="lg"
-                  disabled={pendingAction !== null}
-                  onClick={handleStopSession}
-                  className="rounded-2xl px-5 py-5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-1.5"
-                >
-                  <Square className="size-3.5" />
-                  <span>Stop</span>
-                </Button>
-              </>
-            ) : currentSession.status === "paused" ? (
-              /* Paused Session: Resume, Complete, Stop */
-              <>
-                <Button
-                  type="button"
-                  size="lg"
                   disabled={pendingAction !== null}
                   onClick={handleResumeSession}
-                  className="rounded-2xl px-8 py-5 text-sm font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all flex items-center gap-2"
+                  className="flex-1 max-w-[140px] h-11 rounded-xl text-xs sm:text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2 transition-all px-2.5 sm:px-4"
                 >
-                  <Play className="size-4 fill-white" />
+                  <Play className="size-4 fill-current" />
                   <span>Resume</span>
                 </Button>
                 <Button
                   type="button"
-                  size="lg"
                   disabled={pendingAction !== null}
                   onClick={handleCompleteSession}
-                  className="rounded-2xl px-6 py-5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all flex items-center gap-2"
+                  className={cn(
+                    "flex-1 max-w-[140px] h-11 rounded-xl text-xs sm:text-sm font-semibold text-white shadow-xs press-scale flex items-center justify-center gap-2 transition-all px-2.5 sm:px-4",
+                    completedSuccess
+                      ? "bg-emerald-500 scale-[1.02]"
+                      : "bg-emerald-600 hover:bg-emerald-500"
+                  )}
                 >
-                  <CheckCircle2 className="size-4.5" />
-                  <span>Complete</span>
+                  <CheckCircle2 className="size-4" />
+                  <span>{completedSuccess ? "Finished!" : "Finish"}</span>
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="lg"
-                  disabled={pendingAction !== null}
-                  onClick={handleStopSession}
-                  className="rounded-2xl px-5 py-5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-1.5"
-                >
-                  <Square className="size-3.5" />
-                  <span>Stop</span>
-                </Button>
-              </>
-            ) : currentSession.status === "awaiting_decision" ? (
-              /* Awaiting Decision */
+              </div>
+
+              {/* End Session Action */}
               <Button
                 type="button"
-                size="lg"
-                onClick={() => setDecisionDismissed(false)}
-                className="rounded-2xl px-8 py-5 text-sm font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-md transition-all flex items-center gap-2"
+                variant="ghost"
+                size="icon"
+                disabled={pendingAction !== null}
+                onClick={handleStopSession}
+                aria-label="End session"
+                title="End session"
+                className="size-11 shrink-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 press-scale flex items-center justify-center transition-all"
               >
-                <Sparkles className="size-4" />
-                <span>Review Decision</span>
+                <Square className="size-3.5" />
               </Button>
-            ) : null}
-          </div>
+            </div>
+          ) : currentSession.status === "awaiting_decision" ? (
+            /* Awaiting Decision: Centered Review Decision Button */
+            <Button
+              type="button"
+              onClick={() => setDecisionDismissed(false)}
+              className="w-full max-w-[280px] h-11 rounded-xl px-6 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2 transition-all"
+            >
+              <Sparkles className="size-4" />
+              <span>Review Decision</span>
+            </Button>
+          ) : null}
         </div>
       </div>
 
-      {/* Decision Dialog Modal */}
+      {/* Target Reached Decision Dialog */}
       <DecisionDialog
         open={showDecisionDialog}
         session={
@@ -619,7 +723,7 @@ export function TimerCard({
         onStop={handleStopSession}
       />
 
-      {/* Add Task Modal */}
+      {/* Add Task Dialog */}
       <AddTaskDialog
         open={showAddTaskDialog}
         onOpenChange={setShowAddTaskDialog}

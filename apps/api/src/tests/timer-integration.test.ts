@@ -172,6 +172,21 @@ describe('Timer Engine Integration Tests', () => {
       expect(pausedSessions.some((s: any) => s.id === countdownSessionId)).toBe(true);
     });
 
+    it('GET /api/v1/work-sessions/current returns the paused session with frozen tracked duration', async () => {
+      const res = await request(app)
+        .get('/api/v1/work-sessions/current')
+        .set('Cookie', user1Cookie);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      const session = res.body.data.session;
+      expect(session).not.toBeNull();
+      expect(session.id).toBe(countdownSessionId);
+      expect(session.status).toBe('paused');
+      expect(session.activeSegmentStartedAt).toBeNull();
+      expect(session.elapsedSeconds).toBe(session.trackedSeconds);
+    });
+
     it('POST /api/v1/work-sessions/:id/pause rejects pausing an already paused session with 409', async () => {
       const res = await request(app)
         .post(`/api/v1/work-sessions/${countdownSessionId}/pause`)

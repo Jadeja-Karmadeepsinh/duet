@@ -15,7 +15,7 @@ import type { TimeSeriesPoint } from "./focus-time-chart";
 
 interface CompletionsChartProps {
   data: TimeSeriesPoint[];
-  binning: "daily" | "monthly";
+  binning: "daily" | "weekly" | "monthly";
   totalCompletions: number;
 }
 
@@ -40,12 +40,12 @@ function CompletionsTooltip({ active, payload }: CompletionsTooltipProps) {
   if (active && payload && payload.length > 0) {
     const point = payload[0].payload;
     return (
-      <div className="rounded-xl border border-border bg-card p-2.5 shadow-md text-xs space-y-1">
+      <div className="rounded-xl border border-border bg-popover text-popover-foreground p-3 shadow-lg text-xs space-y-1.5 backdrop-blur-md">
         <p className="font-semibold text-foreground">
           {point.label} ({point.key})
         </p>
         <div className="flex items-center gap-1.5 text-muted-foreground">
-          <span className="size-2 rounded-full bg-[#10b981]" />
+          <span className="size-2 rounded-full bg-emerald-500" />
           <span>Completed:</span>
           <strong className="text-foreground font-mono">
             {point.completionCount} {point.completionCount === 1 ? "task" : "tasks"}
@@ -76,27 +76,37 @@ export function CompletionsChart({
 
   const isEmpty = totalCompletions === 0;
 
+  // Compute smart tick interval to prevent label collisions on narrow screens
+  const getInterval = () => {
+    if (data.length > 60) return Math.floor(data.length / 8);
+    if (data.length > 20) return Math.floor(data.length / 7);
+    if (data.length > 10) return 1;
+    return 0;
+  };
+
   return (
-    <div className="rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-4">
-      <div className="flex items-center justify-between pb-2 border-b border-border/50">
+    <div className="rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-4 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-border/50 gap-2">
         <div>
           <h3 className="text-sm sm:text-base font-bold tracking-tight text-foreground flex items-center gap-2">
-            <CheckCircle2 className="size-4 text-[#10b981]" />
-            <span>Task Completions Over Time</span>
+            <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+            <span>Tasks Completed</span>
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             {binning === "monthly"
               ? "Monthly completed tasks count"
+              : binning === "weekly"
+              ? "Weekly completed tasks count"
               : "Daily completed tasks count (Asia/Kolkata)"}
           </p>
         </div>
-        <span className="text-xs font-mono font-semibold text-[#10b981] bg-[#10b981]/10 px-2.5 py-1 rounded-full">
+        <span className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full w-fit">
           Total: {totalCompletions} tasks
         </span>
       </div>
 
       {isEmpty ? (
-        <div className="h-64 flex flex-col items-center justify-center text-center p-6 text-muted-foreground bg-secondary/20 rounded-2xl border border-dashed border-border">
+        <div className="h-60 sm:h-64 flex flex-col items-center justify-center text-center p-6 text-muted-foreground bg-secondary/20 rounded-2xl border border-dashed border-border">
           <CheckCircle2 className="size-8 stroke-[1.5] text-muted-foreground/40 mb-2" />
           <p className="text-sm font-medium text-foreground">No task completions recorded</p>
           <p className="text-xs max-w-xs text-muted-foreground mt-0.5">
@@ -104,7 +114,7 @@ export function CompletionsChart({
           </p>
         </div>
       ) : (
-        <div className="w-full h-64 sm:h-72">
+        <div className="w-full h-60 sm:h-64 min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
@@ -114,7 +124,7 @@ export function CompletionsChart({
                 strokeDasharray="3 3"
                 vertical={false}
                 stroke="currentColor"
-                className="text-border/40"
+                className="text-border/30"
               />
               <XAxis
                 dataKey="label"
@@ -122,7 +132,7 @@ export function CompletionsChart({
                 axisLine={false}
                 tick={{ fontSize: 11, fill: "currentColor" }}
                 className="text-muted-foreground"
-                interval={data.length > 31 ? Math.floor(data.length / 8) : 0}
+                interval={getInterval()}
               />
               <YAxis
                 allowDecimals={false}
@@ -131,12 +141,15 @@ export function CompletionsChart({
                 tick={{ fontSize: 11, fill: "currentColor" }}
                 className="text-muted-foreground"
               />
-              <Tooltip content={<CompletionsTooltip />} />
+              <Tooltip content={<CompletionsTooltip />} cursor={{ fill: "currentColor", opacity: 0.05 }} />
               <Bar
                 dataKey="completionCount"
-                fill="#10b981"
+                fill="var(--chart-2)"
                 radius={[4, 4, 0, 0]}
-                maxBarSize={40}
+                maxBarSize={36}
+                isAnimationActive={true}
+                animationDuration={260}
+                animationEasing="ease-out"
               />
             </BarChart>
           </ResponsiveContainer>
