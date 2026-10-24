@@ -155,10 +155,10 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // 4. Fetch contribution history
+  // 4. Fetch contribution history (52 weeks for full-year span)
   const fetchContributions = useCallback(async () => {
     try {
-      const res = await fetch("/api/v1/stats/contributions?weeks=26");
+      const res = await fetch("/api/v1/stats/contributions?weeks=52");
       if (res.ok) {
         const json = await res.json();
         if (json.success) {

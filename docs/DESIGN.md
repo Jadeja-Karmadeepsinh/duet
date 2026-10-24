@@ -100,7 +100,7 @@ All dynamic numerical counters—including timer minutes/seconds, session durati
 Strictly restricted to 4 core daily modules:
 1. **Focus Timer**: SVG progress ring for countdown mode; ambient ring for stopwatch; action cluster (`Start`, `Pause`, `Complete`, `End`); auto-expiry decision flow.
 2. **Focus Tasks**: Truncated titles with accessible tooltips; category tag; planned duration; select task trigger; edit & archive dropdown.
-3. **Activity & Focus (Contribution Graph)**: 26-week heatmap with OKLCH green tiers; **today's total focus time positioned in the top-left header** of the same container; click-to-inspect date modal.
+3. **Activity & Focus (Contribution Graph)**: 52-week (full-year) heatmap with OKLCH green tiers; **today's total focus time positioned in the top-left header** of the same container; click-to-inspect date modal.
 4. **Streak Card**: Current streak with amber flame badge; status message; best historical record.
 
 ### Analytics (`/analytics`)

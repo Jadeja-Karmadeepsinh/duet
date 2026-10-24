@@ -398,7 +398,7 @@ Returns today's active focus time, completed tasks count, daily goal seconds, an
 ```
 
 ### `GET /api/v1/stats/contributions`
-Returns approximately 26 weeks of calendar day intensity cells, aligned to Sunday, for the GitHub-style contribution graph.
+Returns up to 52 weeks of calendar day intensity cells (default 26, web dashboard requests 52 for full-year span), aligned to Sunday, for the GitHub-style contribution graph.
 - **Auth**: Required
 - **Query**: `weeks` (optional, 1..52, default 26)
 - **Response** (`200 OK`):
