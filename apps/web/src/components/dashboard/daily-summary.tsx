@@ -107,7 +107,7 @@ export function DailySummary({ stats, onGoalUpdated }: DailySummaryProps) {
           <div className="bg-card rounded-2xl border border-border p-4 sm:p-5 shadow-xs flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">Focus Time</span>
-              <div className="size-8 rounded-xl bg-blue-500/10 text-[#0071e3] flex items-center justify-center">
+              <div className="size-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                 <Clock className="size-4" />
               </div>
             </div>
@@ -184,7 +184,7 @@ export function DailySummary({ stats, onGoalUpdated }: DailySummaryProps) {
         <div className="bg-card rounded-2xl border border-border p-4 shadow-xs space-y-2">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5 font-medium text-foreground">
-              <Target className="size-3.5 text-[#0071e3]" />
+              <Target className="size-3.5 text-primary" />
               <span>Daily Focus Goal</span>
             </div>
             <span className="text-muted-foreground">
@@ -197,7 +197,7 @@ export function DailySummary({ stats, onGoalUpdated }: DailySummaryProps) {
             <div
               className={cn(
                 "h-full rounded-full transition-all duration-500 ease-out",
-                goalPercent >= 100 ? "bg-emerald-500" : "bg-[#0071e3]"
+                goalPercent >= 100 ? "bg-emerald-500" : "bg-primary"
               )}
               style={{ width: `${goalPercent}%` }}
             />
@@ -227,7 +227,7 @@ export function DailySummary({ stats, onGoalUpdated }: DailySummaryProps) {
                 className={cn(
                   "py-2.5 px-3 rounded-xl border text-xs font-medium text-left transition-all",
                   goalSeconds === preset.seconds
-                    ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3] font-semibold"
+                    ? "border-primary bg-primary/10 text-primary font-semibold"
                     : "border-border hover:bg-secondary/40 text-muted-foreground"
                 )}
               >

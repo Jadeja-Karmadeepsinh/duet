@@ -143,7 +143,7 @@ export function ContributionGraph({
       <section
         aria-labelledby="activity-heading"
         className={cn(
-          "rounded-3xl border border-border bg-card p-5 sm:p-6 surface-elevation space-y-5 transition-all",
+          "rounded-3xl border border-border bg-card p-5 sm:p-6 surface-elevation space-y-5 transition-all min-w-0",
           className
         )}
       >

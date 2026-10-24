@@ -328,7 +328,7 @@ export function TimerCard({
     <>
       <div
         className={cn(
-          "relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 surface-elevation transition-all flex flex-col justify-between min-h-[440px]",
+          "relative overflow-hidden rounded-3xl border border-border bg-card p-5 sm:p-8 surface-elevation transition-all flex flex-col justify-between min-h-[440px]",
           currentSession?.status === "running" && "ring-1 ring-primary/40 shadow-sm"
         )}
       >
@@ -436,9 +436,9 @@ export function TimerCard({
                         render={
                           <Button
                             variant="outline"
-                            className="rounded-xl px-3.5 py-1.5 text-xs font-semibold border-border hover:bg-secondary/60 flex items-center gap-2 max-w-[260px] sm:max-w-[320px] truncate"
+                            className="rounded-xl px-3.5 py-1.5 text-xs font-semibold border-border hover:bg-secondary/60 flex items-center gap-2 max-w-[220px] sm:max-w-[320px] min-w-0 truncate"
                           >
-                            <span className="truncate">{activeTask?.title || "Select focus task"}</span>
+                            <span className="truncate min-w-0">{activeTask?.title || "Select focus task"}</span>
                             <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
                           </Button>
                         }

@@ -92,9 +92,9 @@ export function DayDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl space-y-4">
+      <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
         <DialogHeader className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0071e3]">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
             <Calendar className="size-3.5" />
             <span>Asia/Kolkata Calendar</span>
           </div>

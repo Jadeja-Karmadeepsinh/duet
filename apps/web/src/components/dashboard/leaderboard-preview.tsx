@@ -66,7 +66,7 @@ export function LeaderboardPreview() {
         </h3>
         <Link
           href="/leaderboard"
-          className="text-xs text-[#0071e3] hover:text-[#0077ed] font-medium flex items-center gap-1 group"
+          className="text-xs text-primary hover:text-primary/90 font-medium flex items-center gap-1 group"
         >
           <span>Full Standings</span>
           <ArrowRight className="size-3 group-hover:translate-x-0.5 transition-transform" />
