@@ -151,6 +151,13 @@
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.68 0.20 255 / 45%);
 
+  /* Chart palette in dark mode */
+  --chart-1: oklch(0.68 0.20 255);
+  --chart-2: oklch(0.68 0.18 145);
+  --chart-3: oklch(0.76 0.16 70);
+  --chart-4: oklch(0.64 0.20 25);
+  --chart-5: oklch(0.68 0.18 300);
+
   /* Activity heatmap ramp in dark mode */
   --heatmap-0: oklch(0.20 0.006 260);
   --heatmap-1: oklch(0.30 0.09 145);

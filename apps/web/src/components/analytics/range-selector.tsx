@@ -15,11 +15,11 @@ interface RangeSelectorProps {
 }
 
 const RANGES: Array<{ id: AnalyticsRange; label: string }> = [
-  { id: "7d", label: "7 Days" },
-  { id: "30d", label: "30 Days" },
-  { id: "90d", label: "90 Days" },
-  { id: "1y", label: "1 Year" },
-  { id: "lifetime", label: "Lifetime" },
+  { id: "7d", label: "7D" },
+  { id: "30d", label: "30D" },
+  { id: "90d", label: "90D" },
+  { id: "1y", label: "1Y" },
+  { id: "lifetime", label: "All" },
 ];
 
 export function RangeSelector({
