@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState, useRef, useTransition } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   LeaderboardTabs,
@@ -12,10 +13,15 @@ import {
   StandingsList,
   type LeaderboardEntry,
 } from "@/components/leaderboard/standings-list";
+import {
+  ThroughTheDayTable,
+  type SlotSnapshotData,
+} from "@/components/leaderboard/through-the-day-table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, RefreshCw, Trophy, Info } from "lucide-react";
+import { AlertCircle, RefreshCw, Users, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatIndiaDate } from "@/lib/date";
 
 interface LeaderboardApiResponse {
   period: LeaderboardPeriod;
@@ -32,32 +38,53 @@ interface LeaderboardApiResponse {
   timezone: string;
 }
 
-export default function LeaderboardPage() {
-  const [period, setPeriod] = useState<LeaderboardPeriod>("today");
-  const [selectedSlot, setSelectedSlot] = useState<LeaderboardSlot | undefined>(undefined);
+const ALL_SLOTS: Array<{ slot: LeaderboardSlot; label: string }> = [
+  { slot: "10:00", label: "10:00 AM" },
+  { slot: "18:00", label: "6:00 PM" },
+  { slot: "22:00", label: "10:00 PM" },
+];
+
+function LeaderboardContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+
+  // Parse URL parameters: support period=today|7d and scope=today|week
+  const rawPeriod = searchParams.get("period") || searchParams.get("scope");
+  const period: LeaderboardPeriod = rawPeriod === "7d" || rawPeriod === "week" ? "7d" : "today";
+
+  const rawSlot = searchParams.get("slot") as LeaderboardSlot | null;
+  const selectedSlot = rawSlot && ["10:00", "18:00", "22:00"].includes(rawSlot) ? rawSlot : undefined;
+
   const [data, setData] = useState<LeaderboardApiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [throughTheDayData, setThroughTheDayData] = useState<SlotSnapshotData[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const inFlightRef = useRef(false);
+
   const handlePeriodChange = (newPeriod: LeaderboardPeriod) => {
     if (newPeriod !== period) {
-      setLoading(true);
-      setPeriod(newPeriod);
-      // Reset selected slot when switching period
-      setSelectedSlot(undefined);
+      setIsFetching(true);
+      startTransition(() => {
+        router.replace(`/leaderboard?period=${newPeriod}`, { scroll: false });
+      });
     }
   };
 
   const handleSlotChange = (slot: LeaderboardSlot) => {
     if (slot !== selectedSlot) {
-      setLoading(true);
-      setSelectedSlot(slot);
+      setIsFetching(true);
+      startTransition(() => {
+        router.replace(`/leaderboard?period=${period}&slot=${slot}`, { scroll: false });
+      });
     }
   };
 
   const handleRetry = () => {
-    setLoading(true);
+    setIsFetching(true);
     setError(null);
     setRefreshKey((k) => k + 1);
   };
@@ -65,7 +92,10 @@ export default function LeaderboardPage() {
   useEffect(() => {
     let ignore = false;
 
-    async function fetchLeaderboard() {
+    async function loadData() {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+
       try {
         const queryParams = new URLSearchParams({ period });
         if (selectedSlot) {
@@ -78,11 +108,70 @@ export default function LeaderboardPage() {
         }
 
         const json = await res.json();
-        if (json.success && !ignore) {
-          setData(json.data);
-          setError(null);
-        } else if (!ignore) {
+        if (!json.success) {
           throw new Error(json.error?.message || "Failed to load leaderboard");
+        }
+
+        const boardData: LeaderboardApiResponse = json.data;
+        if (!ignore) {
+          setData(boardData);
+          setError(null);
+        }
+
+        // If viewing today's leaderboard, fetch all captured slots for through-the-day progress
+        if (period === "today") {
+          const available = boardData.availableSlots || [];
+          const slotsPromises = ALL_SLOTS.map(async ({ slot, label }) => {
+            if (!available.includes(slot)) {
+              return {
+                slot,
+                label,
+                isCaptured: false,
+                entries: [],
+              };
+            }
+
+            // If current query was already for this slot, reuse the response
+            if (boardData.currentSlot === slot) {
+              return {
+                slot,
+                label,
+                isCaptured: true,
+                entries: boardData.entries,
+              };
+            }
+
+            try {
+              const slotRes = await fetch(`/api/v1/leaderboard?period=today&slot=${slot}`);
+              if (slotRes.ok) {
+                const slotJson = await slotRes.json();
+                if (slotJson.success) {
+                  return {
+                    slot,
+                    label,
+                    isCaptured: true,
+                    entries: slotJson.data.entries as LeaderboardEntry[],
+                  };
+                }
+              }
+            } catch {
+              // Ignore individual slot failures gracefully
+            }
+
+            return {
+              slot,
+              label,
+              isCaptured: false,
+              entries: [],
+            };
+          });
+
+          const resolvedSlots = await Promise.all(slotsPromises);
+          if (!ignore) {
+            setThroughTheDayData(resolvedSlots);
+          }
+        } else if (!ignore) {
+          setThroughTheDayData([]);
         }
       } catch (err: unknown) {
         if (!ignore) {
@@ -93,45 +182,53 @@ export default function LeaderboardPage() {
           );
         }
       } finally {
+        inFlightRef.current = false;
         if (!ignore) {
-          setLoading(false);
+          setInitialLoading(false);
+          setIsFetching(false);
         }
       }
     }
 
-    fetchLeaderboard();
+    void loadData();
+
+    // 15-second polling interval for real-time synchronization
+    const interval = setInterval(() => {
+      void loadData();
+    }, 15000);
+
+    // Refresh on window focus
+    const onFocus = () => {
+      void loadData();
+    };
+    window.addEventListener("focus", onFocus);
 
     return () => {
       ignore = true;
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
     };
   }, [period, selectedSlot, refreshKey]);
 
-  const checkpoints = [
-    {
-      slot: "10:00 AM",
-      label: "Morning Standup Checkpoint",
-      desc: "Captures early deep-work sessions before midday syncs",
-    },
-    {
-      slot: "6:00 PM",
-      label: "Evening Review Checkpoint",
-      desc: "Captures main daytime core engineering and problem-solving",
-    },
-    {
-      slot: "10:00 PM",
-      label: "Night Final Checkpoint",
-      desc: "Final day completion tally and daily streak confirmation",
-    },
-  ];
+  // Format full date in Asia/Kolkata for the header subtitle
+  const fullIndiaDate = formatIndiaDate(new Date(), {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const profiles = data?.entries.map((e) => ({
+    userId: e.userId,
+    displayName: e.displayName,
+    isCurrentUser: e.isCurrentUser,
+  })) || [];
 
   return (
-    <AppShell
-      title="Team Leaderboard"
-      subtitle="Scheduled focus checkpoints at 10:00, 18:00, and 22:00 IST"
-    >
+    <AppShell title="Leaderboard" subtitle={fullIndiaDate}>
       <div className="flex flex-col gap-6 max-w-4xl mx-auto pb-12">
-        {/* Navigation / Tabs */}
-        <div className="bg-card/60 backdrop-blur-md rounded-3xl border border-border p-4 sm:p-5 shadow-xs">
+        {/* Navigation / Timeframe Tabs */}
+        <div className="bg-card/70 backdrop-blur-md rounded-2xl sm:rounded-3xl border border-border p-3.5 sm:p-5 shadow-xs">
           <LeaderboardTabs
             period={period}
             onPeriodChange={handlePeriodChange}
@@ -139,7 +236,7 @@ export default function LeaderboardPage() {
             selectedSlot={selectedSlot || (data?.currentSlot !== "provisional" ? data?.currentSlot : undefined)}
             onSlotChange={handleSlotChange}
             isProvisional={data?.isProvisional ?? false}
-            disabled={loading}
+            disabled={isFetching && !data}
           />
         </div>
 
@@ -162,20 +259,24 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {/* Loading Skeletons */}
-        {loading && !data && (
-          <div className="space-y-4">
-            <Skeleton className="h-24 rounded-3xl" />
-            <Skeleton className="h-20 rounded-3xl" />
-            <Skeleton className="h-20 rounded-3xl" />
-            <Skeleton className="h-20 rounded-3xl" />
+        {/* Initial Loading Skeletons */}
+        {initialLoading && !data && (
+          <div className="space-y-3">
+            <Skeleton className="h-24 rounded-2xl sm:rounded-3xl" />
+            <Skeleton className="h-20 rounded-2xl" />
+            <Skeleton className="h-20 rounded-2xl" />
+            <Skeleton className="h-20 rounded-2xl" />
           </div>
         )}
 
         {/* Leaderboard Content */}
         {data && (
-          <>
-            {/* Status & Checkpoint Banner */}
+          <div
+            className={`space-y-6 transition-opacity duration-200 ${
+              isFetching ? "opacity-75" : "opacity-100"
+            }`}
+          >
+            {/* 1. Status & Checkpoint Banner */}
             <LeaderboardStatusBanner
               isProvisional={data.isProvisional}
               currentSlot={data.currentSlot}
@@ -187,20 +288,20 @@ export default function LeaderboardPage() {
               period={data.period}
             />
 
-            {/* Standings Section */}
+            {/* 2. Standings Section */}
             <section aria-labelledby="standings-heading" className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3
                   id="standings-heading"
                   className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
                 >
-                  <Trophy className="size-3.5 text-amber-500" />
+                  <Users className="size-3.5 text-primary" />
                   <span>
                     {data.period === "today" ? "Today's Standings" : "Last 7 Days Rolling Standings"}
                   </span>
                 </h3>
                 <span className="text-xs text-muted-foreground font-mono">
-                  {data.entries.length} of {data.activeProfileCount} team members
+                  {data.entries.length} of {data.activeProfileCount} members
                 </span>
               </div>
 
@@ -212,48 +313,63 @@ export default function LeaderboardPage() {
               />
             </section>
 
-            {/* Checkpoint Schedule Information */}
-            <section aria-labelledby="schedule-info-heading" className="space-y-3 pt-4">
-              <h3
-                id="schedule-info-heading"
-                className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
-              >
-                <Info className="size-3.5 text-muted-foreground" />
-                <span>Checkpoint Operational Architecture</span>
-              </h3>
+            {/* 3. Through-the-Day Checkpoint Progression (Today only) */}
+            {data.period === "today" && throughTheDayData.length > 0 && (
+              <section aria-label="Through the day progress">
+                <ThroughTheDayTable
+                  slotsData={throughTheDayData}
+                  profiles={profiles}
+                />
+              </section>
+            )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {checkpoints.map((cp) => (
-                  <div
-                    key={cp.slot}
-                    className="p-4 rounded-3xl bg-card border border-border/70 shadow-xs flex flex-col justify-between space-y-2"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <Badge
-                          variant="secondary"
-                          className="font-mono text-xs font-semibold text-[#0071e3] bg-[#0071e3]/10"
-                        >
-                          {cp.slot} IST
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground uppercase font-medium">
-                          Slot
-                        </span>
-                      </div>
-                      <h4 className="text-xs font-semibold text-foreground mt-2">
-                        {cp.label}
-                      </h4>
-                      <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                        {cp.desc}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+            {/* 4. Checkpoint Schedule Architecture */}
+            <section aria-labelledby="schedule-info-heading" className="pt-2">
+              <div className="rounded-2xl border border-border/70 bg-card/60 p-4 shadow-xs space-y-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                  <Info className="size-3.5 text-primary" />
+                  <span>Snapshot Checkpoint Schedule</span>
+                </div>
+                <p className="leading-relaxed">
+                  Focus Duo captures official immutable snapshots three times daily at{" "}
+                  <strong className="text-foreground font-mono">10:00 AM</strong>,{" "}
+                  <strong className="text-foreground font-mono">6:00 PM</strong>, and{" "}
+                  <strong className="text-foreground font-mono">10:00 PM IST</strong>.
+                  Daily standings calculate focus duration and completed tasks recorded up to each checkpoint.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 pt-1 font-mono text-[11px]">
+                  <Badge variant="outline" className="font-mono">10:00 AM (Morning Standup)</Badge>
+                  <Badge variant="outline" className="font-mono">6:00 PM (Evening Review)</Badge>
+                  <Badge variant="outline" className="font-mono">10:00 PM (Night Final)</Badge>
+                </div>
               </div>
             </section>
-          </>
+          </div>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function LeaderboardSkeleton() {
+  return (
+    <AppShell title="Leaderboard" subtitle="Team focus standings">
+      <div className="flex flex-col gap-6 max-w-4xl mx-auto pb-12">
+        <Skeleton className="h-14 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl sm:rounded-3xl" />
+        <div className="space-y-3">
+          <Skeleton className="h-20 rounded-2xl" />
+          <Skeleton className="h-20 rounded-2xl" />
+        </div>
+      </div>
+    </AppShell>
+  );
+}
+
+export default function LeaderboardPage() {
+  return (
+    <Suspense fallback={<LeaderboardSkeleton />}>
+      <LeaderboardContent />
+    </Suspense>
   );
 }
