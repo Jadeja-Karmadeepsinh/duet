@@ -83,3 +83,44 @@ Snapshots freeze team standings daily at **10:00**, **18:00**, and **22:00** in 
   # or
   pnpm --filter api snapshot
   ```
+
+---
+
+## 7. Production Build
+
+To compile both the Next.js production bundle and the TypeScript Express API:
+```bash
+pnpm build
+```
+
+To run in production mode:
+- API server: `pnpm --filter api start`
+- Next.js web server: `pnpm --filter web start`
+
+---
+
+## 8. Environment Variables Reference
+
+| Variable | Target | Scope | Description |
+|---|---|---|---|
+| `DATABASE_URL` | API Server | Server-only | Neon PostgreSQL connection string with SSL enabled |
+| `PORT` | API Server | Server-only | Port for Express API (default: `8000`) |
+| `NODE_ENV` | API & Web | Server-only | Environment (`development` or `production`) |
+| `SESSION_SECRET` | API Server | Server-only | 32-byte secret for signing and encrypting session auth tokens |
+| `INVITE_CODE` | API Server | Server-only | Shared invite code required for registering new team profiles |
+| `CRON_SECRET` | API Server | Server-only | Secret for authenticating automated checkpoint trigger requests |
+| `JOB_SECRET` | API Server | Server-only | Backward-compatible alias for `CRON_SECRET` |
+| `CLIENT_ORIGIN` | API Server | Server-only | Allowed origin for API CORS headers (default: `http://localhost:3000`) |
+| `API_PROXY_TARGET` | Next.js Web | Server-only | Destination URL for the same-origin `/api/*` reverse proxy |
+
+> [!IMPORTANT]
+> None of the server variables are prefixed with `NEXT_PUBLIC_`. Secrets are strictly kept out of client bundles.
+
+---
+
+## 9. Known Limitations & Architectural Invariants
+
+1. **Maximum Profile Limit**: By application design, at most 4 active user profiles can exist simultaneously. This matches the target small-group focus team model.
+2. **Single Active Timer Rule**: A user profile may have at most one timer running across all browser tabs or devices. Attempting to start a second timer returns an HTTP 409 conflict and prevents race conditions via a partial unique index on PostgreSQL (`idx_work_sessions_single_running`).
+3. **No Retroactive Backdating**: Leaderboard snapshots preserve both `scheduledFor` and actual `capturedAt`. If a snapshot was delayed due to process downtime, `isDelayed: true` is permanently recorded and visible in the audit history.
+4. **Calendar Standard**: Daily midnight boundaries, streaks, and rolling analytics are resolved strictly in `Asia/Kolkata` (UTC+05:30). Work sessions spanning across midnight are split at `00:00:00 IST` into their respective calendar days so that metrics remain mathematically consistent across the Dashboard, Analytics, and Leaderboard.

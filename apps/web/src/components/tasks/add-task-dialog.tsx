@@ -239,6 +239,8 @@ export function AddTaskDialog({
             {budgetMode === "custom" && (
               <div className="flex items-center gap-2 pt-1">
                 <Input
+                  id="custom-minutes"
+                  aria-label="Planned countdown duration in minutes"
                   type="number"
                   min="1"
                   max="720"
@@ -247,7 +249,9 @@ export function AddTaskDialog({
                   placeholder="Minutes"
                   className="rounded-xl bg-secondary/30 text-sm w-32"
                 />
-                <span className="text-xs text-muted-foreground">minutes planned countdown</span>
+                <label htmlFor="custom-minutes" className="text-xs text-muted-foreground cursor-pointer">
+                  minutes planned countdown
+                </label>
               </div>
             )}
 
