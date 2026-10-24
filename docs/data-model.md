@@ -142,3 +142,12 @@ Individual profile records captured during a snapshot run.
 - **Constraints & Checks**:
   - Checks for non-negative integers: `focus_seconds_today >= 0`, `completed_tasks_today >= 0`, `focus_seconds_last_7_days >= 0`, `completed_tasks_last_7_days >= 0`.
   - `uniqueIndex('idx_leaderboard_entry_run_user')` on `(snapshot_run_id, user_id)`: Guarantees exactly one entry per user per snapshot run.
+
+### 2.9 `user_preferences`
+Persistent user preferences such as custom daily focus goal.
+- `user_id` (uuid, PK, FK -> users.id, not null, `ON DELETE CASCADE`): Owning user profile.
+- `daily_goal_seconds` (integer, not null, default 14400): Target focus seconds per day in Asia/Kolkata (4 hours default).
+- `created_at` (timestamptz, not null, default now()).
+- `updated_at` (timestamptz, not null, default now()).
+- **Constraints & Checks**:
+  - `daily_goal_seconds_positive`: `daily_goal_seconds > 0`.

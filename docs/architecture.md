@@ -92,25 +92,37 @@ duet/
 │   │   │   ├── server.ts        # Startup listener
 │   │   │   ├── config/env.ts    # Zod environment validation
 │   │   │   ├── db/              # Neon database client & Drizzle schema
-│   │   │   ├── utils/timezone.ts# Asia/Kolkata timezone utilities
-│   │   │   └── tests/           # Vitest integration & unit tests
+│   │   │   ├── routes/          # auth, tasks, work-sessions, stats
+│   │   │   ├── services/        # timer.service.ts, stats.service.ts
+│   │   │   ├── utils/timezone.ts# Asia/Kolkata timezone & calendar utilities
+│   │   │   └── tests/           # Vitest integration & unit tests (73 tests)
 │   │   ├── .env.example         # API server environment template
 │   │   └── package.json
 │   └── web/                     # Next.js 16 App Router (port 3000)
 │       ├── src/
-│       │   ├── app/             # App Router layout, globals.css, health test page
-│       │   ├── components/ui/   # shadcn UI components
-│       │   └── lib/utils.ts     # Styling utilities (clsx + tailwind-merge)
-│       ├── next.config.ts       # Same-origin proxy rewrites to Express
+│       │   ├── app/             # App Router layout, globals.css, dashboard, analytics, leaderboard, login
+│       │   ├── components/      # layout, timer, tasks, dashboard, ui
+│       │   └── lib/utils.ts     # Styling utilities & Asia/Kolkata date formatters
+│       ├── next.config.ts       # Same-origin proxy rewrites to Express (/api/*)
 │       ├── .env.example         # Web environment template
 │       └── package.json
-├── docs/                        # Architecture, data model, API, design system
+├── docs/                        # Architecture, data model, API contract, design system
 ├── .env.example                 # Root workspace environment template
 ├── package.json                 # Monorepo root scripts (dev, dev:web, dev:api, build, test, etc.)
 └── pnpm-workspace.yaml          # pnpm workspace definition (apps/*)
 ```
 
-### 3.2 Request Flow
+### 3.2 Dashboard UI Hierarchy (Stage 6)
+1. **Header**: Time-aware greeting ("Good morning / afternoon / evening"), user's display name, today's date in `Asia/Kolkata` with `(IST)` badge, and flame streak indicator badge.
+2. **Main Focus Timer Surface (`TimerCard`)**: One obvious timer surface with SVG circular progress ring, tabular numerals, mode label (Countdown / Stopwatch), planned vs remaining time, and controls (Start, Pause, Resume, Complete, Stop).
+3. **Decision Dialog (`DecisionDialog`)**: Triggered upon countdown expiry (and restored from server `awaiting_decision` status), offering "Mark task completed", "Extend 15/30/60m", and "Stop without completing". Explains that paused/decision time is not counted.
+4. **Add Task Dialog (`AddTaskDialog`)**: Accessible modal dialog with inline validation, presets (15m, 25m, 45m, 60m, custom), stopwatch mode, and category pills (`Coding`, `DSA`, `Learning`, `Project`, `Personal`, `Other`). Immediately selectable on creation.
+5. **Task Queue (`RecentTasks`)**: Reusable focus tasks list with quick select and soft archive affordance.
+6. **Daily Summary (`DailySummary`)**: Today's active focus time, completed tasks count, daily focus goal progress bar with persistent goal preference dialog, and current/best streaks.
+7. **Contribution Graph (`ContributionGraph`)**: GitHub-style ~26-week calendar grid aligned to Sunday, intensity levels 0–4 based on completions, accessible tooltips, keyboard navigation, click-to-open `DayDetailDialog`, and genuine empty state.
+8. **Leaderboard Preview (`LeaderboardPreview`)**: Displays latest snapshot checkpoint or provisional live status with link to full `/leaderboard`.
+
+### 3.3 Request Flow
 1. **Direct API Access (Development/Testing)**:
    - `GET http://localhost:8000/health` -> Express API returns JSON status directly.
 2. **Same-Origin Client Access (Browser)**:

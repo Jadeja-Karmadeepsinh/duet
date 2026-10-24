@@ -375,5 +375,111 @@ Stops session, closes open segment, sets status `stopped`, preserves `trackedSec
 
 ---
 
-## 5. Streaks, Analytics & Leaderboards (Upcoming Stages)
-*Documented in data-model.md; endpoints to be activated in Stages 5 and 6.*
+---
+
+## 5. Stats, Streaks & Contributions (`/api/v1/stats`)
+
+### `GET /api/v1/stats/summary`
+Returns today's active focus time, completed tasks count, daily goal seconds, and streak calculations in Asia/Kolkata.
+- **Auth**: Required
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "todayDate": "2026-10-24",
+    "focusSecondsToday": 7200,
+    "completedTasksToday": 3,
+    "dailyGoalSeconds": 14400,
+    "currentStreak": 5,
+    "bestStreak": 12
+  }
+}
+```
+
+### `GET /api/v1/stats/contributions`
+Returns approximately 26 weeks of calendar day intensity cells, aligned to Sunday, for the GitHub-style contribution graph.
+- **Auth**: Required
+- **Query**: `weeks` (optional, 1..52, default 26)
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "startDate": "2026-04-26",
+    "endDate": "2026-10-24",
+    "totalFocusSeconds": 144000,
+    "totalCompletions": 42,
+    "days": [
+      {
+        "date": "2026-04-26",
+        "weekday": 0,
+        "completionCount": 2,
+        "focusSeconds": 3600,
+        "level": 2
+      }
+    ]
+  }
+}
+```
+
+### `GET /api/v1/stats/day`
+Returns task completion events and work session records for a clicked date in Asia/Kolkata.
+- **Auth**: Required
+- **Query**: `date=YYYY-MM-DD` (required)
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "date": "2026-10-24",
+    "totalFocusSeconds": 7200,
+    "totalCompletions": 2,
+    "completions": [
+      {
+        "id": "...",
+        "taskTitle": "Feature Implementation",
+        "category": "Coding",
+        "completedAt": "2026-10-24T08:30:00.000Z"
+      }
+    ],
+    "sessions": [ ... ]
+  }
+}
+```
+
+### `GET /api/v1/stats/preferences` & `PATCH /api/v1/stats/preferences`
+Retrieves or updates persistent user preferences (e.g. `dailyGoalSeconds`).
+- **Auth**: Required
+- **PATCH Request Body**:
+```json
+{
+  "dailyGoalSeconds": 18000
+}
+```
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "dailyGoalSeconds": 18000
+  }
+}
+```
+
+### `GET /api/v1/stats/leaderboard-preview`
+Retrieves today's latest snapshot run if captured, or provisional standings status.
+- **Auth**: Required
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "hasSnapshot": false,
+    "status": "provisional",
+    "localDate": "2026-10-24",
+    "activeProfileCount": 2,
+    "nextScheduledSlot": "10:00"
+  }
+}
+```

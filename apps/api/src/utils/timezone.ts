@@ -93,3 +93,33 @@ export function splitSegmentByAsiaKolkataDays(
 
   return results;
 }
+
+/**
+ * Returns previous calendar date string "YYYY-MM-DD".
+ */
+export function getPreviousDateString(dateString: string): string {
+  const [y, m, d] = dateString.split('-').map((v) => parseInt(v, 10));
+  const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns next calendar date string "YYYY-MM-DD".
+ */
+export function getNextDateString(dateString: string): string {
+  const [y, m, d] = dateString.split('-').map((v) => parseInt(v, 10));
+  const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns weekday index 0 (Sunday) to 6 (Saturday) for a given "YYYY-MM-DD".
+ */
+export function getWeekdayForDateString(dateString: string): number {
+  const [y, m, d] = dateString.split('-').map((v) => parseInt(v, 10));
+  const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  return date.getUTCDay();
+}
+

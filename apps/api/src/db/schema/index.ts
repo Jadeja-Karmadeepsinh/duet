@@ -4,3 +4,4 @@ export * from './tasks.js';
 export * from './sessions.js';
 export * from './completions.js';
 export * from './leaderboard.js';
+export * from './preferences.js';

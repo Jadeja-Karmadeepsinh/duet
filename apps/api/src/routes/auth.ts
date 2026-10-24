@@ -52,17 +52,7 @@ authRouter.post(
       throw new ForbiddenError('Invalid team invite code. Access is restricted.');
     }
 
-    // 2. Enforce 4-profile system limit
-    const [activeUsersCount] = await db
-      .select({ val: count() })
-      .from(users)
-      .where(eq(users.isActive, true));
-
-    if (Number(activeUsersCount?.val || 0) >= 4) {
-      throw new ForbiddenError('Maximum profile limit reached (4 active profiles allowed).');
-    }
-
-    // 3. Normalize name and verify uniqueness
+    // 2. Normalize name and verify uniqueness (409 Conflict)
     const normalized = normalizeDisplayName(displayName);
     const [existing] = await db
       .select({ id: users.id })
@@ -72,6 +62,16 @@ authRouter.post(
 
     if (existing) {
       throw new ConflictError('A profile with this display name already exists. Please sign in instead.');
+    }
+
+    // 3. Enforce 4-profile system limit (403 Forbidden)
+    const [activeUsersCount] = await db
+      .select({ val: count() })
+      .from(users)
+      .where(eq(users.isActive, true));
+
+    if (Number(activeUsersCount?.val || 0) >= 4) {
+      throw new ForbiddenError('Maximum profile limit reached (4 active profiles allowed).');
     }
 
     // 4. Hash PIN securely using scrypt

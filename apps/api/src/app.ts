@@ -6,6 +6,7 @@ import { getAsiaKolkataDateTimeString } from './utils/timezone.js';
 import { authRouter } from './routes/auth.js';
 import { taskRouter } from './routes/tasks.js';
 import { workSessionRouter } from './routes/work-sessions.js';
+import { statsRouter } from './routes/stats.js';
 import { AppError } from './utils/errors.js';
 import { ZodError } from 'zod';
 
@@ -53,6 +54,8 @@ app.get('/api/v1/health', handleHealthCheck);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/tasks', taskRouter);
 app.use('/api/v1/work-sessions', workSessionRouter);
+app.use('/api/v1/stats', statsRouter);
+
 
 // 404 handler for unmatched routes
 app.use((_req: Request, res: Response) => {
