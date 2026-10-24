@@ -2,9 +2,35 @@
 
 import React, { useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/app-shell";
-import { Clock } from "lucide-react";
+import { RangeSelector, type AnalyticsRange } from "@/components/analytics/range-selector";
+import {
+  AnalyticsSummaryCards,
+  type AnalyticsSummary,
+} from "@/components/analytics/analytics-summary-cards";
+import {
+  FocusTimeChart,
+  type TimeSeriesPoint,
+} from "@/components/analytics/focus-time-chart";
+import { CompletionsChart } from "@/components/analytics/completions-chart";
+import {
+  CategoryDistributionChart,
+  type CategoryStat,
+} from "@/components/analytics/category-distribution-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { AlertCircle, RefreshCw, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+interface AnalyticsApiResponse {
+  range: AnalyticsRange;
+  rangeLabel: string;
+  startDate: string;
+  endDate: string;
+  binning: "daily" | "monthly";
+  summary: AnalyticsSummary;
+  timeSeries: TimeSeriesPoint[];
+  categories: CategoryStat[];
+}
 
 interface HistoricalSession {
   id: string;
@@ -13,115 +39,227 @@ interface HistoricalSession {
   trackedSeconds: number;
   status: string;
   startedAt: string;
-  finishedAt?: string | null;
 }
 
 export default function AnalyticsPage() {
-  const [sessions, setSessions] = useState<HistoricalSession[]>([]);
+  const [range, setRange] = useState<AnalyticsRange>("7d");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsApiResponse | null>(null);
+  const [recentSessions, setRecentSessions] = useState<HistoricalSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleRangeChange = (newRange: AnalyticsRange) => {
+    if (newRange !== range) {
+      setLoading(true);
+      setRange(newRange);
+    }
+  };
+
+  const handleRetry = () => {
+    setLoading(true);
+    setError(null);
+    setRefreshKey((k) => k + 1);
+  };
 
   useEffect(() => {
     let ignore = false;
-    const fetchAnalytics = async () => {
+
+    async function loadData() {
       try {
-        const res = await fetch("/api/v1/work-sessions?status=completed&limit=50");
-        if (res.ok) {
-          const json = await res.json();
-          if (!ignore && json.success) {
-            setSessions(json.data.sessions || []);
+        const [analyticsRes, sessionsRes] = await Promise.all([
+          fetch(`/api/v1/analytics?range=${range}`),
+          fetch("/api/v1/work-sessions?status=completed&limit=15"),
+        ]);
+
+        if (!analyticsRes.ok) {
+          throw new Error(`Failed to load analytics: HTTP ${analyticsRes.status}`);
+        }
+
+        const analyticsJson = await analyticsRes.json();
+        if (analyticsJson.success) {
+          if (!ignore) {
+            setAnalyticsData(analyticsJson.data);
+            setError(null);
+          }
+        } else {
+          throw new Error(analyticsJson.error?.message || "Failed to load analytics");
+        }
+
+        if (sessionsRes.ok) {
+          const sessionsJson = await sessionsRes.json();
+          if (sessionsJson.success && !ignore) {
+            setRecentSessions(sessionsJson.data.sessions || []);
           }
         }
-      } catch {
-        // Handle network error
+      } catch (err: unknown) {
+        if (!ignore) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "An unexpected error occurred while fetching analytics."
+          );
+        }
       } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+        }
       }
-    };
+    }
 
-    fetchAnalytics();
+    loadData();
+
     return () => {
       ignore = true;
     };
-  }, []);
-
-  const totalTrackedSeconds = sessions.reduce((sum, s) => sum + (s.trackedSeconds || 0), 0);
-  const totalHours = Math.floor(totalTrackedSeconds / 3600);
-  const totalMinutes = Math.floor((totalTrackedSeconds % 3600) / 60);
+  }, [range, refreshKey]);
 
   return (
-    <AppShell title="Analytics" subtitle="Focus history & productivity metrics">
-      <div className="flex flex-col gap-8">
-        {/* Real Summary Metrics */}
-        <section aria-labelledby="metrics-heading" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="bg-card rounded-2xl border border-border p-5 shadow-xs flex flex-col gap-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Focus Time</span>
-            {loading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold tracking-tight text-foreground font-mono">
-                  {totalHours}h {totalMinutes}m
-                </span>
-                <span className="text-xs text-muted-foreground">recorded</span>
-              </div>
-            )}
+    <AppShell title="Analytics" subtitle="Focus velocity, trends & productivity metrics">
+      <div className="flex flex-col gap-6 max-w-6xl mx-auto pb-12">
+        {/* Top Header / Range Selector */}
+        <div className="bg-card/60 backdrop-blur-md rounded-3xl border border-border p-4 sm:p-5 shadow-xs">
+          <RangeSelector
+            range={range}
+            onRangeChange={handleRangeChange}
+            startDate={analyticsData?.startDate}
+            endDate={analyticsData?.endDate}
+            rangeLabel={analyticsData?.rangeLabel}
+            disabled={loading}
+          />
+        </div>
+
+        {/* Error Notification */}
+        {error && (
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              className="gap-1.5 text-xs h-8 border-destructive/30 hover:bg-destructive/10"
+            >
+              <RefreshCw className="size-3.5" />
+              <span>Retry</span>
+            </Button>
           </div>
+        )}
 
-          <div className="bg-card rounded-2xl border border-border p-5 shadow-xs flex flex-col gap-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Completed Sessions</span>
-            {loading ? (
-              <Skeleton className="h-8 w-16" />
-            ) : (
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold tracking-tight text-foreground font-mono">
-                  {sessions.length}
-                </span>
-                <span className="text-xs text-muted-foreground">sessions</span>
-              </div>
-            )}
+        {/* Loading Skeletons */}
+        {loading && !analyticsData && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Skeleton className="h-44 rounded-3xl" />
+              <Skeleton className="h-44 rounded-3xl" />
+              <Skeleton className="h-44 rounded-3xl" />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Skeleton className="h-80 rounded-3xl" />
+              <Skeleton className="h-80 rounded-3xl" />
+            </div>
+            <Skeleton className="h-64 rounded-3xl" />
           </div>
-        </section>
+        )}
 
-        {/* Completed Sessions Log */}
-        <section aria-labelledby="history-heading" className="flex flex-col gap-3">
-          <h3 id="history-heading" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Completed Sessions Log ({sessions.length})
-          </h3>
+        {/* Analytics Content */}
+        {analyticsData && (
+          <>
+            {/* Summary Metrics Cards */}
+            <section aria-label="Summary productivity metrics">
+              <AnalyticsSummaryCards
+                summary={analyticsData.summary}
+                rangeLabel={analyticsData.rangeLabel}
+              />
+            </section>
 
-          <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs divide-y divide-border">
-            {loading ? (
-              <div className="p-6 space-y-3">
-                <Skeleton className="h-4 w-full max-w-sm" />
-                <Skeleton className="h-4 w-3/4 max-w-xs" />
+            {/* Time Series Charts Grid */}
+            <section
+              aria-label="Activity over time"
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            >
+              <FocusTimeChart
+                data={analyticsData.timeSeries}
+                binning={analyticsData.binning}
+                totalFocusSeconds={analyticsData.summary.totalFocusSeconds}
+              />
+              <CompletionsChart
+                data={analyticsData.timeSeries}
+                binning={analyticsData.binning}
+                totalCompletions={analyticsData.summary.totalCompletions}
+              />
+            </section>
+
+            {/* Category Distribution Chart */}
+            <section aria-label="Category breakdown">
+              <CategoryDistributionChart
+                categories={analyticsData.categories}
+                totalFocusSeconds={analyticsData.summary.totalFocusSeconds}
+              />
+            </section>
+
+            {/* Recent Completed Sessions Log */}
+            <section aria-labelledby="recent-sessions-heading" className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3
+                  id="recent-sessions-heading"
+                  className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
+                  Recent Completed Sessions Log
+                </h3>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {recentSessions.length} recorded
+                </span>
               </div>
-            ) : sessions.length > 0 ? (
-              sessions.map((session) => (
-                <div key={session.id} className="p-4 flex items-center justify-between gap-4">
-                  <div className="space-y-1 min-w-0">
-                    <span className="text-sm font-medium text-foreground truncate block">
-                      {session.taskTitleSnapshot}
-                    </span>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {session.categorySnapshot && <span>{session.categorySnapshot} •</span>}
-                      <span>{new Date(session.startedAt).toLocaleDateString()}</span>
+
+              <div className="bg-card rounded-3xl border border-border overflow-hidden shadow-xs divide-y divide-border/60">
+                {recentSessions.length > 0 ? (
+                  recentSessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="p-4 flex items-center justify-between gap-4 hover:bg-secondary/20 transition-colors"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <span className="text-sm font-medium text-foreground truncate block">
+                          {session.taskTitleSnapshot}
+                        </span>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {session.categorySnapshot && (
+                            <span className="font-medium text-foreground/80">
+                              {session.categorySnapshot} •
+                            </span>
+                          )}
+                          <span>
+                            {new Date(session.startedAt).toLocaleDateString("en-GB", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="font-mono text-xs shrink-0">
+                        {Math.round(session.trackedSeconds / 60)} min
+                      </Badge>
                     </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center flex flex-col items-center gap-2 text-muted-foreground">
+                    <Clock className="size-8 stroke-[1.5] text-muted-foreground/40 mb-1" />
+                    <p className="text-sm font-medium text-foreground">
+                      No completed sessions recorded yet
+                    </p>
+                    <p className="text-xs max-w-xs text-muted-foreground">
+                      Start and finish focus sessions from the Dashboard to see your historical log here.
+                    </p>
                   </div>
-                  <Badge variant="secondary" className="font-mono text-xs">
-                    {Math.round(session.trackedSeconds / 60)} min
-                  </Badge>
-                </div>
-              ))
-            ) : (
-              <div className="p-8 text-center flex flex-col items-center gap-2 text-muted-foreground">
-                <Clock className="size-8 stroke-[1.5] text-muted-foreground/60" />
-                <p className="text-sm font-medium text-foreground">No completed sessions yet</p>
-                <p className="text-xs max-w-xs text-muted-foreground">
-                  Complete your first focus session from the Dashboard to see your historical insights here.
-                </p>
+                )}
               </div>
-            )}
-          </div>
-        </section>
+            </section>
+          </>
+        )}
       </div>
     </AppShell>
   );

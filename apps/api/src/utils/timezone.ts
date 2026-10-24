@@ -123,3 +123,24 @@ export function getWeekdayForDateString(dateString: string): number {
   return date.getUTCDay();
 }
 
+/**
+ * Returns date string "YYYY-MM-DD" for `daysAgo` calendar days before `dateString`.
+ */
+export function getDateDaysAgo(dateString: string, daysAgo: number): string {
+  const [y, m, d] = dateString.split('-').map((v) => parseInt(v, 10));
+  const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  date.setUTCDate(date.getUTCDate() - daysAgo);
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns the number of calendar days between startDate and endDate inclusive.
+ */
+export function getDaysBetweenDatesInclusive(startDateStr: string, endDateStr: string): number {
+  const [y1, m1, d1] = startDateStr.split('-').map((v) => parseInt(v, 10));
+  const [y2, m2, d2] = endDateStr.split('-').map((v) => parseInt(v, 10));
+  const t1 = Date.UTC(y1, m1 - 1, d1, 12, 0, 0);
+  const t2 = Date.UTC(y2, m2 - 1, d2, 12, 0, 0);
+  return Math.max(1, Math.round((t2 - t1) / (24 * 3600 * 1000)) + 1);
+}
+

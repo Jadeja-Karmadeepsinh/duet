@@ -483,3 +483,83 @@ Retrieves today's latest snapshot run if captured, or provisional standings stat
   }
 }
 ```
+
+---
+
+## 6. Analytics API (`/api/v1/analytics`)
+
+### `GET /api/v1/analytics`
+Returns aggregate focus metrics, time series bins, category distribution, and prior-period comparisons.
+- **Auth**: Required
+- **Query Parameters**:
+  - `range`: `'7d' | '30d' | '90d' | '1y' | 'lifetime'` (default: `'7d'`). Range bounds are computed strictly on the server in `Asia/Kolkata`.
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "range": "7d",
+    "rangeLabel": "Last 7 Days",
+    "startDate": "2026-10-18",
+    "endDate": "2026-10-24",
+    "binning": "daily",
+    "summary": {
+      "totalFocusSeconds": 28800,
+      "totalCompletions": 12,
+      "calendarDaysCount": 7,
+      "activeDaysCount": 5,
+      "averageFocusSecondsPerCalendarDay": 4114,
+      "averageFocusSecondsPerActiveDay": 5760,
+      "mostFocusDay": {
+        "date": "2026-10-22",
+        "focusSeconds": 10800
+      },
+      "mostCompletionsDay": {
+        "date": "2026-10-24",
+        "completionCount": 4
+      },
+      "currentStreak": 5,
+      "longestStreak": 12,
+      "longestSession": {
+        "id": "18cfd600-...",
+        "taskTitle": "Timer Engine Architecture",
+        "category": "Coding",
+        "mode": "countdown",
+        "trackedSeconds": 3600,
+        "startedAt": "2026-10-22T04:30:00.000Z"
+      },
+      "priorPeriod": {
+        "priorStartDate": "2026-10-11",
+        "priorEndDate": "2026-10-17",
+        "priorTotalFocusSeconds": 21600,
+        "priorTotalCompletions": 9,
+        "focusChangePercent": 33,
+        "completionsChangePercent": 33
+      }
+    },
+    "timeSeries": [
+      {
+        "key": "2026-10-18",
+        "label": "Oct 18",
+        "focusSeconds": 3600,
+        "completionCount": 2
+      }
+    ],
+    "categories": [
+      {
+        "category": "Coding",
+        "focusSeconds": 21600,
+        "completionCount": 9,
+        "percentage": 75
+      },
+      {
+        "category": "Uncategorized",
+        "focusSeconds": 7200,
+        "completionCount": 3,
+        "percentage": 25
+      }
+    ]
+  }
+}
+```
+

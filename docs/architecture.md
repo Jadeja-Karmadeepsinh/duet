@@ -130,3 +130,33 @@ duet/
    - Next.js server inspects `next.config.ts` rewrites, resolves server-only `API_PROXY_TARGET` (`http://localhost:8000`), and proxies the HTTP request.
    - Express API returns JSON health payload.
    - Next.js streams the response back to browser with cookies intact.
+
+### 3.4 Analytics Engine & Architecture (Stage 7)
+1. **Scope & Ranges**:
+   - `7d`: Trailing 7 calendar days inclusive of today (`today - 6` through `today`).
+   - `30d`: Trailing 30 calendar days inclusive of today (`today - 29` through `today`).
+   - `90d`: Trailing 90 calendar days inclusive of today (`today - 89` through `today`).
+   - `1y`: Trailing 365 India calendar days inclusive of today (`today - 364` through `today`).
+   - `lifetime`: Earliest qualifying activity date (first session or completion) through today; if no activity, defaults to today.
+2. **Boundary Derivation & Server Integrity**:
+   - All range boundaries are computed strictly on the backend in `Asia/Kolkata` time; arbitrary date strings from the browser are never trusted.
+   - Exact inclusive dates are returned and labeled in the UI (`YYYY-MM-DD → YYYY-MM-DD (IST)`).
+3. **Midnight Segment Splitting**:
+   - Focus time is derived exclusively from active work segments (`work_session_segments`), splitting across `Asia/Kolkata` midnight boundaries.
+   - Open active segments include duration through `now`.
+   - Pauses and decision windows are excluded.
+4. **Task Completion Counting**:
+   - Task counts are counted strictly from `task_completions.completed_at`, never from session starts or `tasks` rows.
+5. **Averages & Baselines**:
+   - Daily calendar average: `totalFocusSeconds / calendarDaysCount`.
+   - Active day average: `totalFocusSeconds / activeDaysCount` (days with $\ge 1$ task completion OR focus time > 0).
+   - Lifetime daily average: based on calendar days from first activity through today.
+   - Prior-period comparison: Computed strictly against the immediate preceding period of equal length. If prior baseline is 0, percentage change returns `null` (never fabricated).
+6. **Analytics UI Components**:
+   - `RangeSelector`: Segmented pill controls for 7d, 30d, 90d, 1y, lifetime with exact IST date range.
+   - `AnalyticsSummaryCards`: 3 editorial cards (Focus Time & Pace, Output & Consistency, Records & Highlights).
+   - `FocusTimeChart`: Recharts BarChart with Apple system blue accent (`#0071e3`), responsive container, custom tooltip, empty state.
+   - `CompletionsChart`: Recharts BarChart with emerald accent (`#10b981`), responsive container, custom tooltip, empty state.
+   - `CategoryDistributionChart`: Donut chart + progress meters with Apple palette, including "Uncategorized".
+   - `RecentSessions`: Chronological log of recent completed sessions.
+
