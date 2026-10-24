@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
+import { ThemeToggle } from "@/components/theme-toggle";
+
 export default function LoginPage() {
   const { user, loading, signIn, signUp } = useAuth();
   const router = useRouter();
@@ -75,7 +77,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-6 select-none">
+    <div className="relative min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-6 select-none">
+      {/* Top right theme toggle */}
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
+        <ThemeToggle variant="outline" />
+      </div>
+
       <div className="w-full max-w-[380px] flex flex-col gap-6">
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center gap-2">
@@ -83,7 +90,7 @@ export default function LoginPage() {
             <Timer className="size-6 stroke-[2.2]" />
           </div>
           <div className="space-y-1">
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Focus Tracker</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Focus Duo</h1>
             <p className="text-xs text-muted-foreground">
               {mode === "signin" ? "Sign in to your productivity profile" : "Create a new team member profile"}
             </p>
@@ -91,7 +98,7 @@ export default function LoginPage() {
         </div>
 
         {/* Card Container */}
-        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm flex flex-col gap-5">
+        <div className="bg-card rounded-2xl border border-border p-6 surface-elevation flex flex-col gap-5">
           {/* Segmented Control */}
           <div className="p-1 bg-secondary rounded-xl flex items-center gap-1">
             <button

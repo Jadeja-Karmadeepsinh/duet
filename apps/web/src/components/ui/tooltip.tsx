@@ -25,15 +25,19 @@ function TooltipPortal({ ...props }: TooltipPrimitive.Portal.Props) {
 
 function TooltipContent({
   className,
+  side = "top",
+  align = "center",
   sideOffset = 6,
   children,
   ...props
-}: TooltipPrimitive.Popup.Props & {
-  sideOffset?: number
-}) {
+}: TooltipPrimitive.Popup.Props &
+  Pick<
+    TooltipPrimitive.Positioner.Props,
+    "side" | "align" | "sideOffset"
+  >) {
   return (
     <TooltipPortal>
-      <TooltipPrimitive.Positioner sideOffset={sideOffset}>
+      <TooltipPrimitive.Positioner side={side} align={align} sideOffset={sideOffset}>
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           className={cn(
@@ -46,7 +50,7 @@ function TooltipContent({
         </TooltipPrimitive.Popup>
       </TooltipPrimitive.Positioner>
     </TooltipPortal>
-  )
+  );
 }
 
 export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }

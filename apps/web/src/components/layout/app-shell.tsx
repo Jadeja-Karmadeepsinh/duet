@@ -35,6 +35,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
+import { ThemeToggle } from "@/components/theme-toggle";
+
 interface AppShellProps {
   title: string;
   subtitle?: string;
@@ -113,7 +115,7 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
             <div className="flex items-center gap-1.5">
               <span className="font-semibold text-[15px] tracking-tight">Focus</span>
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                Tracker
+                Duo
               </span>
             </div>
           </div>
@@ -144,6 +146,10 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
 
         {/* Bottom profile & signout rail */}
         <div className="p-3 border-t border-border/60 flex flex-col gap-2">
+          <div className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-secondary/30">
+            <span className="text-xs text-muted-foreground font-medium">Appearance</span>
+            <ThemeToggle variant="ghost" />
+          </div>
           <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-secondary/50">
             <Avatar className="size-8">
               <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
@@ -192,7 +198,7 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
                         <div className="size-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                           <Timer className="size-4" />
                         </div>
-                        <SheetTitle className="text-base font-semibold">Focus Tracker</SheetTitle>
+                        <SheetTitle className="text-base font-semibold">Focus Duo</SheetTitle>
                       </div>
                     </SheetHeader>
                     <nav className="p-3 flex flex-col gap-1">
@@ -218,18 +224,24 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
                       })}
                     </nav>
                   </div>
-                  <div className="p-4 border-t border-border flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar className="size-8">
-                        <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-                          {getInitials(user.displayName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs font-medium truncate max-w-[110px]">{user.displayName}</span>
+                  <div className="p-4 border-t border-border flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground font-medium">Appearance</span>
+                      <ThemeToggle variant="ghost" />
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => signOut()} className="text-xs text-destructive">
-                      Sign Out
-                    </Button>
+                    <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar className="size-8">
+                          <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
+                            {getInitials(user.displayName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs font-medium truncate max-w-[110px]">{user.displayName}</span>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => signOut()} className="text-xs text-destructive">
+                        Sign Out
+                      </Button>
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>
@@ -241,15 +253,18 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
             </div>
           </div>
 
-          {/* Right: India Local Date & Profile Dropdown */}
-          <div className="flex items-center gap-3">
+          {/* Right: India Local Date, Theme Toggle, & Profile Dropdown */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {indiaDate && (
-              <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/60 px-2.5 py-1 rounded-full border border-border/50">
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground bg-secondary/60 px-2.5 py-1 rounded-full border border-border/50 tabular-nums">
                 <Calendar className="size-3.5 text-muted-foreground" />
                 <span>{indiaDate}</span>
                 <span className="text-[10px] font-semibold text-muted-foreground/75 uppercase tracking-wider ml-0.5">IST</span>
               </div>
             )}
+
+            {/* Mobile & Topbar Theme Toggle */}
+            <ThemeToggle />
 
             {/* User Dropdown */}
             <DropdownMenu>
@@ -270,7 +285,7 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
                   <DropdownMenuLabel className="px-2.5 py-2">
                     <div className="flex flex-col">
                       <span className="text-xs font-semibold text-foreground">{user.displayName}</span>
-                      <span className="text-[11px] text-muted-foreground">Focus Team Profile</span>
+                      <span className="text-[11px] text-muted-foreground">Focus Duo Profile</span>
                     </div>
                   </DropdownMenuLabel>
                 </DropdownMenuGroup>

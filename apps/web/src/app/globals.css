@@ -2,14 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-poppins), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-poppins), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -27,6 +27,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -42,17 +43,15 @@
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) * 1.3);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-3xl: calc(var(--radius) * 2.0);
 }
 
 :root {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-  /* Apple Light System Canvas (#f5f5f7) & Surfaces (#ffffff) */
+  /* Apple Light: Soft neutral light canvas (#f5f5f7) & crisp white surfaces (#ffffff) */
   --background: oklch(0.97 0.003 260);
   --foreground: oklch(0.18 0.005 260);
   --card: oklch(1 0 0);
@@ -60,52 +59,70 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.005 260);
 
-  /* Primary Accent: Apple System Blue (#0071e3) */
+  /* Apple Primary Interactive: Apple Blue (#0071e3) */
   --primary: oklch(0.55 0.22 255);
   --primary-foreground: oklch(1 0 0);
 
+  /* Subtle neutral secondary & muted */
   --secondary: oklch(0.94 0.004 260);
-  --secondary-foreground: oklch(0.25 0.005 260);
+  --secondary-foreground: oklch(0.22 0.005 260);
 
   --muted: oklch(0.94 0.004 260);
   --muted-foreground: oklch(0.52 0.008 260);
 
-  --accent: oklch(0.95 0.005 260);
+  --accent: oklch(0.94 0.004 260);
   --accent-foreground: oklch(0.18 0.005 260);
 
-  --destructive: oklch(0.63 0.23 25);
-  --border: oklch(0.91 0.004 260);
-  --input: oklch(0.91 0.004 260);
-  --ring: oklch(0.55 0.22 255 / 40%);
+  /* Semantic status colors */
+  --destructive: oklch(0.60 0.22 25);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.62 0.17 145);
+  --warning: oklch(0.72 0.16 70);
+
+  /* Clean hairlines and focus */
+  --border: oklch(0.90 0.004 260);
+  --input: oklch(0.90 0.004 260);
+  --ring: oklch(0.55 0.22 255 / 45%);
 
   --radius: 0.75rem;
 
+  /* Sidebar surface tokens */
   --sidebar: oklch(0.985 0.002 260);
   --sidebar-foreground: oklch(0.18 0.005 260);
   --sidebar-primary: oklch(0.55 0.22 255);
   --sidebar-primary-foreground: oklch(1 0 0);
   --sidebar-accent: oklch(0.94 0.004 260);
   --sidebar-accent-foreground: oklch(0.18 0.005 260);
-  --sidebar-border: oklch(0.91 0.004 260);
-  --sidebar-ring: oklch(0.55 0.22 255 / 40%);
+  --sidebar-border: oklch(0.90 0.004 260);
+  --sidebar-ring: oklch(0.55 0.22 255 / 45%);
 
+  /* Chart palette */
   --chart-1: oklch(0.55 0.22 255);
-  --chart-2: oklch(0.72 0.19 145);
-  --chart-3: oklch(0.75 0.18 70);
-  --chart-4: oklch(0.63 0.23 25);
+  --chart-2: oklch(0.62 0.17 145);
+  --chart-3: oklch(0.72 0.16 70);
+  --chart-4: oklch(0.60 0.22 25);
   --chart-5: oklch(0.62 0.18 300);
+
+  /* Activity heatmap ramp */
+  --heatmap-0: oklch(0.92 0.004 260);
+  --heatmap-1: oklch(0.84 0.07 145);
+  --heatmap-2: oklch(0.72 0.13 145);
+  --heatmap-3: oklch(0.60 0.18 145);
+  --heatmap-4: oklch(0.48 0.20 145);
 }
 
 .dark {
+  /* Apple Dark: Deep near-black canvas (#0d0d0e) & charcoal surfaces (#1c1c1e) */
   --background: oklch(0.12 0.005 260);
   --foreground: oklch(0.97 0.003 260);
   --card: oklch(0.18 0.006 260);
   --card-foreground: oklch(0.97 0.003 260);
-  --popover: oklch(0.18 0.006 260);
+  --popover: oklch(0.19 0.006 260);
   --popover-foreground: oklch(0.97 0.003 260);
 
+  /* Apple Dark Primary: Apple Vivid Blue (#2997ff) */
   --primary: oklch(0.68 0.20 255);
-  --primary-foreground: oklch(0.12 0.005 260);
+  --primary-foreground: oklch(0.10 0.005 260);
 
   --secondary: oklch(0.24 0.006 260);
   --secondary-foreground: oklch(0.97 0.003 260);
@@ -116,19 +133,30 @@
   --accent: oklch(0.24 0.006 260);
   --accent-foreground: oklch(0.97 0.003 260);
 
-  --destructive: oklch(0.65 0.21 25);
+  --destructive: oklch(0.64 0.20 25);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.68 0.18 145);
+  --warning: oklch(0.76 0.16 70);
+
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.68 0.20 255 / 40%);
+  --ring: oklch(0.68 0.20 255 / 45%);
 
   --sidebar: oklch(0.15 0.005 260);
   --sidebar-foreground: oklch(0.97 0.003 260);
   --sidebar-primary: oklch(0.68 0.20 255);
-  --sidebar-primary-foreground: oklch(0.12 0.005 260);
+  --sidebar-primary-foreground: oklch(0.10 0.005 260);
   --sidebar-accent: oklch(0.22 0.006 260);
   --sidebar-accent-foreground: oklch(0.97 0.003 260);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.68 0.20 255 / 40%);
+  --sidebar-ring: oklch(0.68 0.20 255 / 45%);
+
+  /* Activity heatmap ramp in dark mode */
+  --heatmap-0: oklch(0.20 0.006 260);
+  --heatmap-1: oklch(0.30 0.09 145);
+  --heatmap-2: oklch(0.44 0.14 145);
+  --heatmap-3: oklch(0.56 0.18 145);
+  --heatmap-4: oklch(0.68 0.20 145);
 }
 
 @layer base {
@@ -136,12 +164,48 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/15 selection:text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-foreground;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   html {
     @apply font-sans;
   }
+}
+
+/* Tabular numerals for timer, metrics, dates, and tables */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Apple-style subtle depth and surfaces */
+.surface-elevation {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 3px 1px rgb(0 0 0 / 0.02);
+}
+.surface-elevation-hover {
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.surface-elevation-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px 0 rgb(0 0 0 / 0.06), 0 1px 3px 0 rgb(0 0 0 / 0.03);
+}
+
+.dark .surface-elevation {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.45), inset 0 1px 0 0 rgb(255 255 255 / 0.05);
+}
+.dark .surface-elevation-hover:hover {
+  box-shadow: 0 4px 14px 0 rgb(0 0 0 / 0.65), inset 0 1px 0 0 rgb(255 255 255 / 0.08);
+}
+
+/* Translucent material / Glass surface */
+.glass-panel {
+  background-color: oklch(1 0 0 / 0.78);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+.dark .glass-panel {
+  background-color: oklch(0.18 0.006 260 / 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
 /* Apple-style interactive feedback */
