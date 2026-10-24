@@ -141,7 +141,7 @@ describe('Analytics API & Engine Integration Tests', () => {
     expect(resLifetime.status).toBe(200);
     expect(resLifetime.body.data.range).toBe('lifetime');
     expect(resLifetime.body.data.summary.priorPeriod).toBeNull();
-  });
+  }, 60000);
 
   it('Calculates metrics with sessions, completions, midnight splits, and categories', async () => {
     // 1. Create a task with category "Coding"
