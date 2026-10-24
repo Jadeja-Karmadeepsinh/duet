@@ -3,6 +3,10 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { checkDatabaseConnection } from './db/index.js';
 import { getAsiaKolkataDateTimeString } from './utils/timezone.js';
+import { authRouter } from './routes/auth.js';
+import { taskRouter } from './routes/tasks.js';
+import { AppError } from './utils/errors.js';
+import { ZodError } from 'zod';
 
 export const app = express();
 
@@ -14,7 +18,7 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 
-// Request logging (concise in dev)
+// Request logging (sanitized, never logs credentials, cookies, tokens, or PINs)
 app.use((req: Request, _res: Response, next: NextFunction) => {
   if (process.env.NODE_ENV !== 'test') {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
@@ -22,7 +26,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// Health check endpoints
+// Health check endpoints (Public)
 const handleHealthCheck = async (_req: Request, res: Response) => {
   const dbHealth = await checkDatabaseConnection();
   const now = new Date();
@@ -44,6 +48,10 @@ app.get('/health', handleHealthCheck);
 app.get('/api/health', handleHealthCheck);
 app.get('/api/v1/health', handleHealthCheck);
 
+// Application routes
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/tasks', taskRouter);
+
 // 404 handler for unmatched routes
 app.use((_req: Request, res: Response) => {
   res.status(404).json({
@@ -55,10 +63,34 @@ app.use((_req: Request, res: Response) => {
   });
 });
 
-// Global error handler adhering to API envelope
+// Global error handler adhering to API contract envelope
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: {
+        code: err.code,
+        message: err.message,
+        details: err.details,
+      },
+    });
+  }
+
+  if (err instanceof ZodError) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid request payload',
+        details: err.format(),
+      },
+    });
+  }
+
   const statusCode = err.status || err.statusCode || 500;
-  console.error('Unhandled API Error:', err);
+  if (process.env.NODE_ENV !== 'test') {
+    console.error('Unhandled API Error:', err);
+  }
 
   res.status(statusCode).json({
     success: false,

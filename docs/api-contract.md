@@ -1,6 +1,6 @@
 # API Contract: Focus Tracker
 
-All endpoints are served from `/api/v1` and use standard JSON request and response payloads.
+All application endpoints are served from `/api/v1` and use standard JSON request and response payloads. The public health check is also available at `/health`.
 
 ## Standard Envelope
 
@@ -28,17 +28,17 @@ All endpoints are served from `/api/v1` and use standard JSON request and respon
 
 ## 1. System & Health
 
-### `GET /api/v1/health`
-Healthcheck and system status.
+### `GET /health` or `GET /api/v1/health`
+System status and active database connectivity verification.
 - **Auth**: Public
-- **Response**:
+- **Response** (`200 OK` or `503 Service Unavailable`):
 ```json
 {
   "success": true,
   "data": {
     "status": "ok",
-    "serverTimeUtc": "2026-10-24T08:45:00.000Z",
-    "serverTimeAsiaKolkata": "2026-10-24 14:15:00",
+    "serverTimeUtc": "2026-10-24T09:45:00.000Z",
+    "serverTimeAsiaKolkata": "2026-10-24 15:15:00",
     "database": "connected"
   }
 }
@@ -46,24 +46,40 @@ Healthcheck and system status.
 
 ---
 
-## 2. Authentication
+## 2. Authentication (`/api/v1/auth`)
 
 ### `POST /api/v1/auth/signup`
-Creates a new profile if under the 4-profile limit.
-- **Auth**: Public (Requires shared invite code in payload or header)
+Registers a new user profile. Enforces maximum 4 active profiles, shared team invite code, and unique normalized display name.
+- **Auth**: Public (Rate-limited: 15 req/min)
 - **Request Body**:
 ```json
 {
   "displayName": "Karmadeep",
   "pin": "1234",
-  "inviteCode": "secret-invite-token"
+  "inviteCode": "focus-team-2026"
 }
 ```
-- **Response**: Sets `focus_session` HttpOnly cookie. Returns profile summary.
+- **Responses**:
+  - `201 Created`: Sets `focus_session` HttpOnly cookie (`Path=/`, `SameSite=Lax`, `Max-Age=30d`).
+    ```json
+    {
+      "success": true,
+      "data": {
+        "user": {
+          "id": "e7b0c793-f112-4f3b-87b6-f1c5040e53a2",
+          "displayName": "Karmadeep",
+          "createdAt": "2026-10-24T09:45:00.000Z"
+        }
+      }
+    }
+    ```
+  - `400 Bad Request` (`VALIDATION_ERROR`): Name or PIN does not satisfy constraints.
+  - `403 Forbidden` (`FORBIDDEN`): Invalid invite code OR 4-profile system limit reached.
+  - `409 Conflict` (`CONFLICT`): Profile with normalized name already exists.
 
 ### `POST /api/v1/auth/signin`
-Sign in with existing display name and personal PIN.
-- **Auth**: Public
+Authenticate using display name and personal PIN.
+- **Auth**: Public (Rate-limited: 15 req/min)
 - **Request Body**:
 ```json
 {
@@ -71,107 +87,148 @@ Sign in with existing display name and personal PIN.
   "pin": "1234"
 }
 ```
-- **Response**: Sets `focus_session` HttpOnly cookie.
+- **Responses**:
+  - `200 OK`: Sets `focus_session` HttpOnly cookie.
+    ```json
+    {
+      "success": true,
+      "data": {
+        "user": {
+          "id": "e7b0c793-f112-4f3b-87b6-f1c5040e53a2",
+          "displayName": "Karmadeep",
+          "createdAt": "2026-10-24T09:45:00.000Z"
+        }
+      }
+    }
+    ```
+  - `401 Unauthorized` (`UNAUTHORIZED`): Display name not found or PIN incorrect.
 
 ### `POST /api/v1/auth/signout`
-Invalidates current session token in database and clears cookie.
-- **Auth**: Authenticated
+Revokes active session record in database and clears the `focus_session` cookie.
+- **Auth**: Authenticated (`requireAuth`)
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Signed out successfully."
+  }
+}
+```
 
 ### `GET /api/v1/auth/me`
-Retrieves current profile information.
-- **Auth**: Authenticated
+Retrieves currently authenticated user profile.
+- **Auth**: Authenticated (`requireAuth`)
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "e7b0c793-f112-4f3b-87b6-f1c5040e53a2",
+      "displayName": "Karmadeep",
+      "createdAt": "2026-10-24T09:45:00.000Z"
+    }
+  }
+}
+```
+- `401 Unauthorized`: Cookie missing, invalid, or expired.
 
 ---
 
-## 3. Tasks
+## 3. Tasks (`/api/v1/tasks`)
+
+All task endpoints require authentication. User ownership is strictly enforced on the server; client-supplied `ownerUserId` is ignored.
 
 ### `GET /api/v1/tasks`
-List user's active reusable tasks.
+Lists reusable task templates owned by the authenticated user.
+- **Query Parameters**:
+  - `status`: `'active'` (default), `'archived'`, or `'all'`
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "tasks": [
+      {
+        "id": "f51276a1-6ba9-4db8-9d41-396a84c8a245",
+        "ownerUserId": "e7b0c793-f112-4f3b-87b6-f1c5040e53a2",
+        "title": "Deep Code Review",
+        "description": "Reviewing pull requests and architecture",
+        "plannedDurationSeconds": 1800,
+        "category": "Engineering",
+        "status": "active",
+        "createdAt": "2026-10-24T09:45:00.000Z",
+        "updatedAt": "2026-10-24T09:45:00.000Z",
+        "archivedAt": null
+      }
+    ]
+  }
+}
+```
+
+### `GET /api/v1/tasks/:id`
+Retrieves a specific task owned by the authenticated profile.
+- **Response**:
+  - `200 OK`: `{ "success": true, "data": { "task": { ... } } }`
+  - `404 Not Found` (`NOT_FOUND`): Task does not exist or belongs to another user (prevents ownership probing).
 
 ### `POST /api/v1/tasks`
-Create a reusable task.
+Creates a new reusable task template.
 - **Request Body**:
 ```json
 {
-  "title": "Deep Architecture Design",
-  "description": "Monorepo and schema setup",
-  "plannedDurationSeconds": 1500,
+  "title": "Deep Code Review",
+  "description": "Optional notes",
+  "plannedDurationSeconds": 1800,
+  "category": "Engineering"
+}
+```
+- **Responses**:
+  - `201 Created`: `{ "success": true, "data": { "task": { ... } } }`
+  - `400 Bad Request`: Title missing or duration not a positive integer <= 86,400.
+
+### `PATCH /api/v1/tasks/:id`
+Updates task fields.
+- **Request Body**:
+```json
+{
+  "title": "Updated Title",
+  "plannedDurationSeconds": 2400,
   "category": "Architecture"
 }
 ```
-
-### `PATCH /api/v1/tasks/:id`
-Update a task's details.
+- **Responses**:
+  - `200 OK`: `{ "success": true, "data": { "task": { ... } } }`
+  - `404 Not Found`: Task does not exist or belongs to another user.
 
 ### `DELETE /api/v1/tasks/:id`
-Archive a task (soft delete).
-
----
-
-## 4. Timer & Focus Sessions
-
-### `GET /api/v1/timer/current`
-Fetches current active or awaiting-decision session for authenticated user, with calculated elapsed seconds.
-
-### `POST /api/v1/timer/start`
-Starts a new focus session.
-- **Request Body**:
+Soft-archives a task (sets `status: 'archived'`, `archivedAt: now()`). Does not destroy historical work sessions or completions.
+- **Response** (`200 OK`):
 ```json
 {
-  "taskId": "task-uuid-or-null",
-  "title": "Ad-hoc deep work",
-  "plannedDurationSeconds": 1800,
-  "category": "Deep Work"
+  "success": true,
+  "data": {
+    "message": "Task archived successfully.",
+    "task": { ... }
+  }
 }
 ```
 
-### `POST /api/v1/timer/:id/pause`
-Closes current active segment and sets status to `paused`.
-
-### `POST /api/v1/timer/:id/resume`
-Starts a new segment and sets status to `running`.
-
-### `POST /api/v1/timer/:id/extend`
-Extends countdown by 15, 30, or 60 minutes (`extensionSeconds: 900 | 1800 | 3600`), creates a new work segment, and resumes.
-
-### `POST /api/v1/timer/:id/complete`
-Marks session completed, closes active segment, and creates a `task_completions` record.
-
-### `POST /api/v1/timer/:id/stop`
-Stops session without marking completed. Active time is saved, but no completion record or streak increment is triggered.
+### `POST /api/v1/tasks/:id/unarchive`
+Restores an archived task back to `active`.
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Task unarchived successfully.",
+    "task": { ... }
+  }
+}
+```
 
 ---
 
-## 5. Streaks & Contributions
-
-### `GET /api/v1/streaks/summary`
-Current streak, longest streak, today's completion status.
-
-### `GET /api/v1/streaks/contributions?year=2026`
-Daily completion counts and focus seconds formatted for the contribution graph in `Asia/Kolkata`.
-
----
-
-## 6. Analytics
-
-### `GET /api/v1/analytics?range=7d|30d|90d|1y|lifetime`
-Returns:
-- Total focus seconds & completed tasks
-- Calendar-day average & active-day average
-- Most-focus-time day & most-tasks-completed day
-- Time series of focus seconds and completed tasks
-- Category distribution breakdown (grouping nulls into "Uncategorized")
-
----
-
-## 7. Leaderboard & Scheduled Jobs
-
-### `GET /api/v1/leaderboard/today`
-Today's leaderboard. Displays live/provisional view before the 10:00 checkpoint, or the latest checkpoint with slot inspection (`10:00`, `18:00`, `22:00`).
-
-### `GET /api/v1/leaderboard/rolling-7-days`
-Aggregated rolling 7-day leaderboard across active profiles.
-
-### `POST /api/v1/jobs/leaderboard-snapshot`
-- **Auth**: Protected via `x-job-secret` header or bearer token.
-- Triggers capture of current or overdue checkpoint snapshot idempotently.
+## 4. Timer, Streaks, Analytics & Leaderboards (Upcoming Stages)
+*Documented in data-model.md; endpoints to be activated in Stages 4, 5, and 6.*
