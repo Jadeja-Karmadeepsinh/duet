@@ -339,7 +339,7 @@ export function TimerCard({
     <>
       <div
         className={cn(
-          "relative overflow-hidden rounded-3xl border border-border bg-card p-5 sm:p-8 surface-elevation transition-all flex flex-col justify-between min-h-[400px] sm:min-h-[440px] h-full",
+          "relative overflow-hidden rounded-3xl border border-border bg-card p-5 sm:p-6 surface-elevation transition-all flex flex-col justify-between min-h-[380px] sm:min-h-[420px] h-full",
           currentSession?.status === "running" && "ring-1 ring-primary/40 shadow-sm",
           className
         )}
@@ -357,7 +357,7 @@ export function TimerCard({
           )}
 
           {/* Top Status & Mode Caption */}
-          <div className="flex items-center justify-center gap-2 mb-3 min-h-[26px]">
+          <div className="flex items-center justify-center gap-2 mb-2 min-h-[24px]">
             <AnimatePresence mode="wait">
               {currentSession ? (
                 <motion.div
@@ -428,7 +428,7 @@ export function TimerCard({
           </div>
 
           {/* Task Selector or Active Task Title */}
-          <div className="mb-4 max-w-md w-full">
+          <div className="mb-1 sm:mb-2 max-w-md w-full min-h-[34px] flex items-center justify-center">
             {currentSession ? (
               <div className="flex flex-col items-center gap-1">
                 <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground truncate max-w-xs sm:max-w-md">
@@ -516,12 +516,13 @@ export function TimerCard({
         </div>
 
         {/* Middle Region: Central Timer Surface (Progress Ring & Tabular Digits) */}
-        <div className="relative size-56 sm:size-64 flex items-center justify-center my-auto mx-auto select-none shrink-0">
-          <svg
-            className="size-full -rotate-90 transform"
-            viewBox="0 0 210 210"
-            aria-hidden="true"
-          >
+        <div className="relative my-auto flex items-center justify-center select-none shrink-0 py-2 sm:py-3">
+          <div className="relative size-60 sm:size-64 md:size-72 lg:size-[280px] flex items-center justify-center select-none shrink-0">
+            <svg
+              className="size-full -rotate-90 transform"
+              viewBox="0 0 210 210"
+              aria-hidden="true"
+            >
               {/* Background Track Circle */}
               <circle
                 cx="105"
@@ -558,16 +559,16 @@ export function TimerCard({
                 className={cn(
                   "font-mono font-bold tracking-tight text-foreground tabular-nums drop-shadow-xs transition-all duration-200 select-none",
                   displaySeconds >= 360000
-                    ? "text-xl sm:text-2xl md:text-3xl"
+                    ? "text-2xl sm:text-[28px] md:text-[34px]"
                     : displaySeconds >= 3600
-                    ? "text-2xl sm:text-3xl md:text-4xl"
-                    : "text-4xl sm:text-5xl md:text-6xl"
+                    ? "text-[28px] sm:text-[34px] md:text-[40px] lg:text-[44px]"
+                    : "text-[42px] sm:text-[52px] md:text-[64px] lg:text-[68px]"
                 )}
                 aria-live="polite"
               >
                 {formatTimerDisplay(displaySeconds)}
               </span>
-              <span className="text-[11px] font-semibold text-muted-foreground mt-1 tracking-wider uppercase truncate max-w-[160px]">
+              <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground mt-1.5 tracking-wider uppercase truncate max-w-[160px]">
                 {currentSession?.mode === "countdown"
                   ? currentSession.status === "awaiting_decision"
                     ? "Time's Up"
@@ -578,115 +579,112 @@ export function TimerCard({
               </span>
             </div>
           </div>
+        </div>
 
-          {/* Action Controls */}
-          <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2.5 mt-auto pt-4 w-full max-w-sm shrink-0">
-            {!currentSession ? (
-              /* Idle: Primary Start Focus Button */
+        {/* Action Controls Region - Uniform 44px (h-11) Height across All States */}
+        <div className="w-full max-w-sm shrink-0 flex items-center justify-center min-h-[44px]">
+          {!currentSession ? (
+            /* Idle: Primary Start Focus Button */
+            <Button
+              type="button"
+              disabled={pendingAction !== null || loadingSession}
+              onClick={handleStartSession}
+              className="w-full max-w-[280px] h-11 rounded-xl px-6 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2 transition-all"
+            >
+              <Play className="size-4 fill-current" />
+              <span>Start Focus</span>
+            </Button>
+          ) : currentSession.status === "running" ? (
+            /* Running Session: Pause, Finish, End */
+            <div className="w-full flex items-center justify-center gap-2.5 h-11">
               <Button
                 type="button"
-                size="lg"
-                disabled={pendingAction !== null || loadingSession}
-                onClick={handleStartSession}
-                className="w-full sm:w-auto min-w-[180px] rounded-xl px-6 py-2.5 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2"
+                variant="outline"
+                disabled={pendingAction !== null}
+                onClick={handlePauseSession}
+                className="flex-1 h-11 rounded-xl text-sm font-semibold border-border hover:bg-secondary/60 press-scale flex items-center justify-center gap-2 transition-all"
+              >
+                <Pause className="size-4" />
+                <span>Pause</span>
+              </Button>
+              <Button
+                type="button"
+                disabled={pendingAction !== null}
+                onClick={handleCompleteSession}
+                className={cn(
+                  "flex-1 h-11 rounded-xl text-sm font-semibold text-white shadow-xs press-scale flex items-center justify-center gap-2 transition-all",
+                  completedSuccess
+                    ? "bg-emerald-500 scale-[1.02]"
+                    : "bg-emerald-600 hover:bg-emerald-500"
+                )}
+              >
+                <CheckCircle2 className="size-4" />
+                <span>{completedSuccess ? "Finished!" : "Finish"}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={pendingAction !== null}
+                onClick={handleStopSession}
+                aria-label="End session"
+                title="End session"
+                className="size-11 shrink-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 press-scale flex items-center justify-center transition-all"
+              >
+                <Square className="size-3.5" />
+              </Button>
+            </div>
+          ) : currentSession.status === "paused" ? (
+            /* Paused Session: Resume, Finish, End */
+            <div className="w-full flex items-center justify-center gap-2.5 h-11">
+              <Button
+                type="button"
+                disabled={pendingAction !== null}
+                onClick={handleResumeSession}
+                className="flex-1 h-11 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2 transition-all"
               >
                 <Play className="size-4 fill-current" />
-                <span>Start Focus</span>
+                <span>Resume</span>
               </Button>
-            ) : currentSession.status === "running" ? (
-              /* Running Session: Pause, Complete, Stop */
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="default"
-                  disabled={pendingAction !== null}
-                  onClick={handlePauseSession}
-                  className="flex-1 rounded-xl text-xs font-semibold press-scale flex items-center justify-center gap-1.5"
-                >
-                  <Pause className="size-3.5" />
-                  <span>Pause</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="default"
-                  disabled={pendingAction !== null}
-                  onClick={handleCompleteSession}
-                  className={cn(
-                    "flex-1 rounded-xl text-xs font-semibold shadow-xs press-scale flex items-center justify-center gap-1.5 transition-all",
-                    completedSuccess
-                      ? "bg-emerald-500 text-white scale-[1.02]"
-                      : "bg-emerald-600 hover:bg-emerald-500 text-white"
-                  )}
-                >
-                  <CheckCircle2 className="size-3.5" />
-                  <span>{completedSuccess ? "Completed!" : "Complete"}</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="default"
-                  disabled={pendingAction !== null}
-                  onClick={handleStopSession}
-                  className="rounded-xl text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 press-scale flex items-center justify-center gap-1"
-                >
-                  <Square className="size-3" />
-                  <span>End</span>
-                </Button>
-              </>
-            ) : currentSession.status === "paused" ? (
-              /* Paused Session: Resume (Primary), Complete, Stop */
-              <>
-                <Button
-                  type="button"
-                  size="default"
-                  disabled={pendingAction !== null}
-                  onClick={handleResumeSession}
-                  className="flex-1 rounded-xl text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-1.5"
-                >
-                  <Play className="size-3.5 fill-current" />
-                  <span>Resume</span>
-                </Button>
-                <Button
-                  type="button"
-                  size="default"
-                  disabled={pendingAction !== null}
-                  onClick={handleCompleteSession}
-                  className={cn(
-                    "flex-1 rounded-xl text-xs font-semibold shadow-xs press-scale flex items-center justify-center gap-1.5 transition-all",
-                    completedSuccess
-                      ? "bg-emerald-500 text-white scale-[1.02]"
-                      : "bg-emerald-600 hover:bg-emerald-500 text-white"
-                  )}
-                >
-                  <CheckCircle2 className="size-3.5" />
-                  <span>{completedSuccess ? "Completed!" : "Complete"}</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="default"
-                  disabled={pendingAction !== null}
-                  onClick={handleStopSession}
-                  className="rounded-xl text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 press-scale flex items-center justify-center gap-1"
-                >
-                  <Square className="size-3" />
-                  <span>End</span>
-                </Button>
-              </>
-            ) : currentSession.status === "awaiting_decision" ? (
-              /* Awaiting Decision */
               <Button
                 type="button"
-                size="default"
-                onClick={() => setDecisionDismissed(false)}
-                className="w-full sm:w-auto rounded-xl px-6 py-2.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2"
+                disabled={pendingAction !== null}
+                onClick={handleCompleteSession}
+                className={cn(
+                  "flex-1 h-11 rounded-xl text-sm font-semibold text-white shadow-xs press-scale flex items-center justify-center gap-2 transition-all",
+                  completedSuccess
+                    ? "bg-emerald-500 scale-[1.02]"
+                    : "bg-emerald-600 hover:bg-emerald-500"
+                )}
               >
-                <Sparkles className="size-4" />
-                <span>Review Decision</span>
+                <CheckCircle2 className="size-4" />
+                <span>{completedSuccess ? "Finished!" : "Finish"}</span>
               </Button>
-            ) : null}
-          </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={pendingAction !== null}
+                onClick={handleStopSession}
+                aria-label="End session"
+                title="End session"
+                className="size-11 shrink-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 press-scale flex items-center justify-center transition-all"
+              >
+                <Square className="size-3.5" />
+              </Button>
+            </div>
+          ) : currentSession.status === "awaiting_decision" ? (
+            /* Awaiting Decision */
+            <Button
+              type="button"
+              onClick={() => setDecisionDismissed(false)}
+              className="w-full max-w-[280px] h-11 rounded-xl px-6 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2 transition-all"
+            >
+              <Sparkles className="size-4" />
+              <span>Review Decision</span>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {/* Target Reached Decision Dialog */}
