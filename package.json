@@ -1,0 +1,19 @@
+{
+  "name": "focus-tracker-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm --recursive --filter \"./apps/*\" run build",
+    "lint": "pnpm --recursive --filter \"./apps/*\" run lint",
+    "typecheck": "pnpm --recursive --filter \"./apps/*\" run typecheck",
+    "test": "pnpm --recursive --filter \"./apps/*\" run test",
+    "db:generate": "pnpm --filter api db:generate",
+    "db:migrate": "pnpm --filter api db:migrate",
+    "clean": "pnpm --recursive --filter \"./apps/*\" exec rimraf dist .next node_modules"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
