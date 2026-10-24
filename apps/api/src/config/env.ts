@@ -6,6 +6,23 @@ import path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 dotenv.config();
 
+const isTestOrBuild = process.env.NODE_ENV === 'test' || process.env.BUILD_PHASE === 'true';
+
+// If DATABASE_URL is missing, fail with an actionable message at runtime,
+// but provide a placeholder during test/build so commands remain usable.
+if (!process.env.DATABASE_URL) {
+  if (isTestOrBuild) {
+    process.env.DATABASE_URL = 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
+  } else {
+    console.error('\n' + '='.repeat(60));
+    console.error('❌ [CONFIG ERROR] DATABASE_URL is missing!');
+    console.error('Please configure DATABASE_URL in your root .env file.');
+    console.error('Copy .env.example to .env and provide your Neon PostgreSQL connection string:');
+    console.error('  DATABASE_URL="postgresql://user:password@host/neondb?sslmode=require"');
+    console.error('='.repeat(60) + '\n');
+  }
+}
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(8000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -18,8 +35,8 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error('Invalid environment variables in apps/api:', parsed.error.format());
-  throw new Error('Environment validation failed');
+  console.error('❌ Invalid environment variables in apps/api:', parsed.error.format());
+  throw new Error('Environment validation failed. Please check your .env configuration.');
 }
 
 export const env = parsed.data;

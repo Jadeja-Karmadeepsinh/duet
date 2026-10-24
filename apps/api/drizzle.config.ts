@@ -7,14 +7,14 @@ dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 dotenv.config();
 
 if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL is not defined in environment variables for drizzle.config.ts');
+  console.warn('[WARN] DATABASE_URL is not set in environment variables for drizzle.config.ts');
 }
 
 export default defineConfig({
-  schema: './src/db/schema.ts',
+  schema: './src/db/schema/index.ts',
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: process.env.DATABASE_URL || '',
   },
 });
