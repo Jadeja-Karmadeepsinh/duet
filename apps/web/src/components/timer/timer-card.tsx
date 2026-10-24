@@ -339,7 +339,7 @@ export function TimerCard({
     <>
       <div
         className={cn(
-          "relative overflow-hidden rounded-3xl border border-border bg-card p-5 sm:p-6 surface-elevation transition-all flex flex-col justify-between min-h-[380px] sm:min-h-[420px] h-full",
+          "relative overflow-hidden rounded-3xl border border-border bg-card p-5 sm:p-6 surface-elevation transition-all flex flex-col items-center justify-between min-h-[380px] sm:min-h-[420px] h-full",
           currentSession?.status === "running" && "ring-1 ring-primary/40 shadow-sm",
           className
         )}
@@ -516,7 +516,7 @@ export function TimerCard({
         </div>
 
         {/* Middle Region: Central Timer Surface (Progress Ring & Tabular Digits) */}
-        <div className="relative my-auto flex items-center justify-center select-none shrink-0 py-2 sm:py-3">
+        <div className="relative my-auto flex items-center justify-center select-none shrink-0 py-2 sm:py-3 w-full">
           <div className="relative size-60 sm:size-64 md:size-72 lg:size-[280px] flex items-center justify-center select-none shrink-0">
             <svg
               className="size-full -rotate-90 transform"
@@ -582,9 +582,9 @@ export function TimerCard({
         </div>
 
         {/* Action Controls Region - Uniform 44px (h-11) Height across All States */}
-        <div className="w-full max-w-sm shrink-0 flex items-center justify-center min-h-[44px]">
+        <div className="w-full max-w-sm mx-auto shrink-0 flex items-center justify-center min-h-[44px]">
           {!currentSession ? (
-            /* Idle: Primary Start Focus Button */
+            /* Idle: Primary Start Focus Button (Centered single action) */
             <Button
               type="button"
               disabled={pendingAction !== null || loadingSession}
@@ -595,32 +595,40 @@ export function TimerCard({
               <span>Start Focus</span>
             </Button>
           ) : currentSession.status === "running" ? (
-            /* Running Session: Pause, Finish, End */
-            <div className="w-full flex items-center justify-center gap-2.5 h-11">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={pendingAction !== null}
-                onClick={handlePauseSession}
-                className="flex-1 h-11 rounded-xl text-sm font-semibold border-border hover:bg-secondary/60 press-scale flex items-center justify-center gap-2 transition-all"
-              >
-                <Pause className="size-4" />
-                <span>Pause</span>
-              </Button>
-              <Button
-                type="button"
-                disabled={pendingAction !== null}
-                onClick={handleCompleteSession}
-                className={cn(
-                  "flex-1 h-11 rounded-xl text-sm font-semibold text-white shadow-xs press-scale flex items-center justify-center gap-2 transition-all",
-                  completedSuccess
-                    ? "bg-emerald-500 scale-[1.02]"
-                    : "bg-emerald-600 hover:bg-emerald-500"
-                )}
-              >
-                <CheckCircle2 className="size-4" />
-                <span>{completedSuccess ? "Finished!" : "Finish"}</span>
-              </Button>
+            /* Running Session: Centered Pause + Finish pair with balanced End action */
+            <div className="w-full max-w-sm mx-auto grid grid-cols-[44px_1fr_44px] items-center gap-2 sm:gap-2.5 h-11">
+              {/* Symmetrical Left Spacer to ensure exact geometric horizontal center */}
+              <div className="size-11 shrink-0 pointer-events-none" aria-hidden="true" />
+
+              {/* Centered Primary Action Pair (Pause + Finish) */}
+              <div className="flex items-center justify-center gap-2 sm:gap-2.5 w-full">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pendingAction !== null}
+                  onClick={handlePauseSession}
+                  className="flex-1 max-w-[140px] h-11 rounded-xl text-xs sm:text-sm font-semibold border-border hover:bg-secondary/60 press-scale flex items-center justify-center gap-2 transition-all px-2.5 sm:px-4"
+                >
+                  <Pause className="size-4" />
+                  <span>Pause</span>
+                </Button>
+                <Button
+                  type="button"
+                  disabled={pendingAction !== null}
+                  onClick={handleCompleteSession}
+                  className={cn(
+                    "flex-1 max-w-[140px] h-11 rounded-xl text-xs sm:text-sm font-semibold text-white shadow-xs press-scale flex items-center justify-center gap-2 transition-all px-2.5 sm:px-4",
+                    completedSuccess
+                      ? "bg-emerald-500 scale-[1.02]"
+                      : "bg-emerald-600 hover:bg-emerald-500"
+                  )}
+                >
+                  <CheckCircle2 className="size-4" />
+                  <span>{completedSuccess ? "Finished!" : "Finish"}</span>
+                </Button>
+              </div>
+
+              {/* End Session Action */}
               <Button
                 type="button"
                 variant="ghost"
@@ -635,31 +643,39 @@ export function TimerCard({
               </Button>
             </div>
           ) : currentSession.status === "paused" ? (
-            /* Paused Session: Resume, Finish, End */
-            <div className="w-full flex items-center justify-center gap-2.5 h-11">
-              <Button
-                type="button"
-                disabled={pendingAction !== null}
-                onClick={handleResumeSession}
-                className="flex-1 h-11 rounded-xl text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2 transition-all"
-              >
-                <Play className="size-4 fill-current" />
-                <span>Resume</span>
-              </Button>
-              <Button
-                type="button"
-                disabled={pendingAction !== null}
-                onClick={handleCompleteSession}
-                className={cn(
-                  "flex-1 h-11 rounded-xl text-sm font-semibold text-white shadow-xs press-scale flex items-center justify-center gap-2 transition-all",
-                  completedSuccess
-                    ? "bg-emerald-500 scale-[1.02]"
-                    : "bg-emerald-600 hover:bg-emerald-500"
-                )}
-              >
-                <CheckCircle2 className="size-4" />
-                <span>{completedSuccess ? "Finished!" : "Finish"}</span>
-              </Button>
+            /* Paused Session: Centered Resume + Finish pair with balanced End action */
+            <div className="w-full max-w-sm mx-auto grid grid-cols-[44px_1fr_44px] items-center gap-2 sm:gap-2.5 h-11">
+              {/* Symmetrical Left Spacer to ensure exact geometric horizontal center */}
+              <div className="size-11 shrink-0 pointer-events-none" aria-hidden="true" />
+
+              {/* Centered Primary Action Pair (Resume + Finish) */}
+              <div className="flex items-center justify-center gap-2 sm:gap-2.5 w-full">
+                <Button
+                  type="button"
+                  disabled={pendingAction !== null}
+                  onClick={handleResumeSession}
+                  className="flex-1 max-w-[140px] h-11 rounded-xl text-xs sm:text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2 transition-all px-2.5 sm:px-4"
+                >
+                  <Play className="size-4 fill-current" />
+                  <span>Resume</span>
+                </Button>
+                <Button
+                  type="button"
+                  disabled={pendingAction !== null}
+                  onClick={handleCompleteSession}
+                  className={cn(
+                    "flex-1 max-w-[140px] h-11 rounded-xl text-xs sm:text-sm font-semibold text-white shadow-xs press-scale flex items-center justify-center gap-2 transition-all px-2.5 sm:px-4",
+                    completedSuccess
+                      ? "bg-emerald-500 scale-[1.02]"
+                      : "bg-emerald-600 hover:bg-emerald-500"
+                  )}
+                >
+                  <CheckCircle2 className="size-4" />
+                  <span>{completedSuccess ? "Finished!" : "Finish"}</span>
+                </Button>
+              </div>
+
+              {/* End Session Action */}
               <Button
                 type="button"
                 variant="ghost"
@@ -674,7 +690,7 @@ export function TimerCard({
               </Button>
             </div>
           ) : currentSession.status === "awaiting_decision" ? (
-            /* Awaiting Decision */
+            /* Awaiting Decision: Centered Review Decision Button */
             <Button
               type="button"
               onClick={() => setDecisionDismissed(false)}
