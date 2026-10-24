@@ -1,61 +1,132 @@
-# Design System: Focus Tracker
+# Focus Tracker Design System
 
-Focus Tracker adheres to the principles of fluid Apple-style craftsmanship combined with shadcn/ui primitives.
-
-## 1. Core Visual Foundations
-
-### 1.1 Color Palette & Theme Tokens
-- Dark-mode first aesthetics with deep neutral zinc/slate tones, subtle border contrasts, and vibrant functional accents.
-- Semantic tokens:
-  - `bg-background`: Deep canvas (`#09090b` / `oklch(0.14 0.005 285)`)
-  - `bg-card`: Elevated floating surface with soft border (`#18181b`)
-  - `text-foreground`: Clean, optical contrast (`#fafafa`)
-  - `text-muted-foreground`: Subdued metadata and secondary details (`#a1a1aa`)
-  - `border`: Crisp, low-contrast boundary lines (`rgba(255, 255, 255, 0.08)`)
-  - `primary`: Vibrant accent for key call-to-actions, running states, and active streaks (`#38bdf8` / `#6366f1` / `#10b981`)
-- No raw color utility overrides (e.g. avoid `bg-blue-500` or `text-gray-400`); always leverage semantic tokens.
-
-### 1.2 Translucency & Depth (Apple Materials)
-- Top navigation and floating timer controls use blurred translucent glass:
-  ```css
-  background: rgba(18, 18, 22, 0.75);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  ```
-- Floating cards feature layered elevation with soft ambient shadows.
-
-### 1.3 Typography
-- Body font: Clean system typography or Geist/Inter with optical sizing.
-- Time counters: Monospace tabular numerals (`font-mono tabular-nums tracking-tight`) to prevent layout jitter when seconds tick.
-- Dynamic tracking: Tightened tracking (`tracking-tight` / `-0.02em`) on large display figures; neutral tracking on body copy.
+An Apple-inspired productivity interface engineered for focus, high information hierarchy, and calm, sustained daily use.
 
 ---
 
-## 2. Interaction & Motion Rules
+## 1. Visual Direction & Philosophy
 
-### 2.1 Latency & Press Feedback
-- Buttons and interactive items respond immediately on pointer-down:
+### Core Aesthetic: Refined, Restrained, Editorial
+- **System app feel**: Modeled on macOS/iOS system utilities (Notes, Reminders, Calendar, Finder). Clean planes of quiet color, generous breathing room, and clear typographical hierarchy rather than ornamental decoration.
+- **Light theme first**:
+  - **Canvas (Page Background)**: `#f5f5f7` (macOS system canvas light)
+  - **Surfaces (Cards / Panels)**: `#ffffff` (pure white surface with hairline border)
+  - **Primary Text**: `#1d1d1f` (near-black, optical clarity)
+  - **Secondary / Muted Text**: `#6e6e73` (neutral gray, high legibility)
+  - **Hairline Dividers & Borders**: `#e5e5ea` (1px clean edge, no heavy box borders)
+  - **Primary Action Accent**: `#0071e3` (Apple system blue — focused, deliberate, used only for key interactive triggers)
+  - **Success / Completion**: `#34c759` (system green for streaks, finished sessions, checkmarks)
+  - **Warning**: `#ff9500` (system orange for recovery warnings, stale timer alerts)
+  - **Destructive / Error**: `#ff3b30` (system red for errors, destructive deletions, failed validation)
+- **Dark Theme (Optional Automatic / Toggle)**:
+  - **Canvas**: `#000000` (true deep black)
+  - **Surfaces**: `#1c1c1e` (macOS dark elevated card surface)
+  - **Primary Text**: `#f5f5f7`
+  - **Muted Text**: `#86868b`
+  - **Hairline Border**: `#2c2c2e` / `rgba(255, 255, 255, 0.08)`
+  - **Primary Accent**: `#2997ff` (vibrant light blue)
+
+### What We Avoid (Anti-Patterns)
+- **No artificial AI-dashboard tropes**: No full-screen glow blobs, giant gradients, rainbow borders, bouncing numbers, or noisy particle canvases.
+- **No card-for-everything syndrome**: Group related data through layout, vertical rhythm, and subtle hairline separators rather than nesting cards within cards.
+- **No decorative stock illustrations**: All meaning is communicated through crisp layout, typography, real metrics, and clean Lucide outline icons (`strokeWidth: 1.75`).
+- **No emojis as navigation icons**: Use system-grade SVG icons with strict 1:1 sizing.
+
+---
+
+## 2. Typography
+
+### Font Stack
+- **Interface / Proportional**:
+  ```css
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  ```
+  Native system rendering with zero layout shift, zero external network font downloads, and native subpixel antialiasing.
+- **Monospace / Numerical (Timers, Durations, Codes)**:
+  ```css
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-variant-numeric: tabular-nums;
+  ```
+  Monospaced numbers prevent jitter during timer countdowns.
+
+### Type Scale & Optical Tracking
+| Token | Size | Line Height | Tracking | Weight | Usage |
+|---|---|---|---|---|---|
+| `text-xs` | 11px / 0.6875rem | 14px | `+0.01em` | Medium (500) | Timestamps, tags, uppercase captions |
+| `text-sm` | 13px / 0.8125rem | 18px | `0` | Regular (400) / Medium (500) | Secondary body, metadata, table data |
+| `text-base` | 15px / 0.9375rem | 22px | `-0.005em` | Regular (400) | Primary body copy, inputs, nav items |
+| `text-lg` | 17px / 1.0625rem | 24px | `-0.01em` | SemiBold (600) | Section headers, card titles |
+| `text-xl` | 20px / 1.25rem | 26px | `-0.015em` | SemiBold (600) | Page subtitles, dialog titles |
+| `text-2xl` | 24px / 1.5rem | 30px | `-0.02em` | Bold (700) | Main page titles, view headers |
+| `text-4xl` | 36px / 2.25rem | 40px | `-0.025em` | Bold (700) | Prominent timer displays, key metric callouts |
+
+---
+
+## 3. Spatial System & Layout
+
+### 4px Base Spacing Grid
+- `space-1` = 4px
+- `space-2` = 8px
+- `space-3` = 12px
+- `space-4` = 16px
+- `space-6` = 24px
+- `space-8` = 32px
+- `space-12` = 48px
+
+### Desktop Application Shell
+- **Left Navigation Rail**: Fixed width `240px`. Quiet, understated background (`#fbfbfd` or slightly tinted translucent surface), simple product wordmark **Focus**, three primary routes:
+  1. `Dashboard` (Timer, current focus, quick task queue)
+  2. `Analytics` (Historical focus time, session distribution, trends)
+  3. `Leaderboard` (Checkpoints at 10:00, 18:00, 22:00 IST)
+  - Bottom section contains the active user profile identity, current date context, and sign-out button.
+- **Top Context Header**: Height `56px`. Shows breadcrumb or page title, local India date (`Asia/Kolkata`), and user avatar profile menu.
+- **Main View Canvas**: Centered container with max width `1280px`, horizontal padding `32px` on desktop, `16px` on mobile. Generous vertical breathing room.
+
+### Mobile Adaptations
+- Sidebar collapses into a compact top bar with brand mark and accessible trigger for a slide-over mobile Sheet.
+- Bottom navigation bar on mobile viewports for quick one-thumb switching between `Dashboard`, `Analytics`, and `Leaderboard`.
+- Zero horizontal overflow (`overflow-x-hidden`). All timer controls, task lists, and forms scale down smoothly to 360px widths.
+
+---
+
+## 4. Materials, Elevation & Borders
+
+### Corner Radii
+- **Controls & Buttons**: `8px` (`rounded-lg`)
+- **Cards & Data Panels**: `12px` (`rounded-xl`)
+- **Modals, Dialogs & Sheets**: `16px` (`rounded-2xl`)
+- **Pills & Status Badges**: `9999px` (`rounded-full`)
+
+### Hairlines & Elevation
+- **Hairline Border**: `1px solid var(--border)` (`#e5e5ea` in light, `rgba(255,255,255,0.08)` in dark).
+- **Subtle Elevation**:
+  ```css
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  ```
+  Elevated modals and floating timer panels use:
+  ```css
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  ```
+
+---
+
+## 5. Motion & Physicality (Apple Guidelines)
+
+- **Default UI Spring**: Critically damped (`damping: 1.0`, `response: 0.35s`). Sits immediately at rest without theatrical bounce.
+- **Interactive Feedback**: Instant response on pointer-down:
   ```css
   .press-scale:active {
-    transform: scale(0.97);
-    transition: transform 100ms ease-out;
+    transform: scale(0.98);
+    transition: transform 80ms ease-out;
   }
   ```
-- No artificial delays or blocking transitions.
-
-### 2.2 Spring Dynamics
-- Critically damped springs (`damping: 1.0`, `response: 0.35s`) for dialogs, drawers, and tabs.
-- Subtle momentum bounce (`damping: ~0.8`) reserved exclusively for flick and swipe gestures.
-- Reduced-motion compliance (`@media (prefers-reduced-motion: reduce)`) switches transforms to subtle cross-fades.
-
----
-
-## 3. Component Hierarchy & Patterns
-
-- **Dialogs & Overlays**: Use accessible shadcn `Dialog`, `Sheet`, or `Drawer` primitives with explicit `DialogTitle` and `DialogDescription`.
-- **Forms**: Structured with `FieldGroup` and `Field`, with validation indicators via `data-invalid` and `aria-invalid`.
-- **Data States**:
-  - **Loading**: Pulse skeletons (`Skeleton`) matching the shape of incoming content.
-  - **Empty**: Contextual zero-state containers with helpful prompts to create the first task or session.
-  - **Error**: Accessible alerts (`Alert`, `AlertTitle`, `AlertDescription`) with retry triggers.
-  - **Success**: Inline confirmations and non-intrusive Sonner toasts.
+- **Respect Reduced Motion**:
+  ```css
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  ```
