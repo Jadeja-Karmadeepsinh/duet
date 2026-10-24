@@ -15,6 +15,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
+import {
+  motion,
+  AnimatePresence,
+  activePillSpring,
+  statusPillVariants,
+  accordionVariants,
+} from "@/lib/motion";
 
 interface FieldErrors {
   displayName?: string;
@@ -170,13 +177,20 @@ export default function LoginPage() {
               disabled={submitting}
               onClick={() => switchMode("signin")}
               className={cn(
-                "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
+                "relative flex-1 py-1.5 text-xs font-semibold rounded-lg select-none cursor-pointer transition-colors",
                 mode === "signin"
-                  ? "bg-card text-foreground shadow-xs font-semibold"
+                  ? "text-foreground font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Sign In
+              {mode === "signin" && (
+                <motion.span
+                  layoutId="auth-mode-pill"
+                  className="absolute inset-0 bg-card rounded-lg shadow-xs -z-0"
+                  transition={activePillSpring}
+                />
+              )}
+              <span className="relative z-10">Sign In</span>
             </button>
             <button
               type="button"
@@ -187,26 +201,39 @@ export default function LoginPage() {
               disabled={submitting}
               onClick={() => switchMode("signup")}
               className={cn(
-                "flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer",
+                "relative flex-1 py-1.5 text-xs font-semibold rounded-lg select-none cursor-pointer transition-colors",
                 mode === "signup"
-                  ? "bg-card text-foreground shadow-xs font-semibold"
+                  ? "text-foreground font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              Create Profile
+              {mode === "signup" && (
+                <motion.span
+                  layoutId="auth-mode-pill"
+                  className="absolute inset-0 bg-card rounded-lg shadow-xs -z-0"
+                  transition={activePillSpring}
+                />
+              )}
+              <span className="relative z-10">Create Profile</span>
             </button>
           </div>
 
           {/* Global API Error Alert */}
-          {globalError && (
-            <div
-              role="alert"
-              className="p-3 rounded-xl bg-destructive/10 border border-destructive/25 flex items-start gap-2.5 text-destructive text-xs animate-in fade-in-50 duration-150"
-            >
-              <AlertCircle className="size-4 shrink-0 mt-0.5" />
-              <span className="leading-snug">{globalError}</span>
-            </div>
-          )}
+          <AnimatePresence>
+            {globalError && (
+              <motion.div
+                role="alert"
+                variants={statusPillVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                className="p-3 rounded-xl bg-destructive/10 border border-destructive/25 flex items-start gap-2.5 text-destructive text-xs"
+              >
+                <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                <span className="leading-snug">{globalError}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Form */}
           <form
@@ -319,64 +346,72 @@ export default function LoginPage() {
             </div>
 
             {/* Team Invite Code (Create Profile only) */}
-            {mode === "signup" && (
-              <div className="space-y-1 animate-in fade-in-50 duration-200">
-                <label
-                  htmlFor="inviteCode"
-                  className="text-xs font-semibold text-foreground flex items-center justify-between"
+            <AnimatePresence>
+              {mode === "signup" && (
+                <motion.div
+                  variants={accordionVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="space-y-1"
                 >
-                  <span>
-                    Team Invite Code <strong className="text-destructive font-normal">*</strong>
-                  </span>
-                  <span className="text-[11px] font-normal text-muted-foreground">
-                    Shared secret
-                  </span>
-                </label>
-                <div className="relative">
-                  <Input
-                    id="inviteCode"
-                    name="inviteCode"
-                    type={showInviteCode ? "text" : "password"}
-                    autoComplete="one-time-code"
-                    required
-                    placeholder="Enter team invite code"
-                    value={inviteCode}
-                    disabled={submitting}
-                    onChange={(e) => {
-                      setInviteCode(e.target.value);
-                      if (fieldErrors.inviteCode) {
-                        setFieldErrors((prev) => ({ ...prev, inviteCode: undefined }));
-                      }
-                    }}
-                    className="h-10 text-sm rounded-xl pr-10"
-                    aria-invalid={!!fieldErrors.inviteCode}
-                    aria-describedby="inviteCode-msg"
-                  />
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    disabled={submitting}
-                    onClick={() => setShowInviteCode(!showInviteCode)}
-                    aria-label={showInviteCode ? "Hide invite code" : "Show invite code"}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 transition-colors cursor-pointer"
+                  <label
+                    htmlFor="inviteCode"
+                    className="text-xs font-semibold text-foreground flex items-center justify-between"
                   >
-                    {showInviteCode ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-                <div id="inviteCode-msg" className="min-h-[16px] text-[11px] flex items-center justify-between">
-                  {fieldErrors.inviteCode ? (
-                    <span className="text-destructive flex items-center gap-1">
-                      <AlertCircle className="size-3 shrink-0" />
-                      {fieldErrors.inviteCode}
+                    <span>
+                      Team Invite Code <strong className="text-destructive font-normal">*</strong>
                     </span>
-                  ) : (
-                    <span className="text-muted-foreground">
-                      Access restricted to team members (up to 4 profiles).
+                    <span className="text-[11px] font-normal text-muted-foreground">
+                      Shared secret
                     </span>
-                  )}
-                </div>
-              </div>
-            )}
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id="inviteCode"
+                      name="inviteCode"
+                      type={showInviteCode ? "text" : "password"}
+                      autoComplete="one-time-code"
+                      required
+                      placeholder="Enter team invite code"
+                      value={inviteCode}
+                      disabled={submitting}
+                      onChange={(e) => {
+                        setInviteCode(e.target.value);
+                        if (fieldErrors.inviteCode) {
+                          setFieldErrors((prev) => ({ ...prev, inviteCode: undefined }));
+                        }
+                      }}
+                      className="h-10 text-sm rounded-xl pr-10"
+                      aria-invalid={!!fieldErrors.inviteCode}
+                      aria-describedby="inviteCode-msg"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      disabled={submitting}
+                      onClick={() => setShowInviteCode(!showInviteCode)}
+                      aria-label={showInviteCode ? "Hide invite code" : "Show invite code"}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 transition-colors cursor-pointer"
+                    >
+                      {showInviteCode ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  <div id="inviteCode-msg" className="min-h-[16px] text-[11px] flex items-center justify-between">
+                    {fieldErrors.inviteCode ? (
+                      <span className="text-destructive flex items-center gap-1">
+                        <AlertCircle className="size-3 shrink-0" />
+                        {fieldErrors.inviteCode}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Access restricted to team members (up to 4 profiles).
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Submit Button */}
             <Button

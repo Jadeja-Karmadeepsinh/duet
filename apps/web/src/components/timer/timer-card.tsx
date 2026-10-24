@@ -23,6 +23,7 @@ import {
 import { DecisionDialog } from "./decision-dialog";
 import { AddTaskDialog } from "../tasks/add-task-dialog";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence, statusPillVariants } from "@/lib/motion";
 
 export interface ActiveSession {
   id: string;
@@ -72,6 +73,7 @@ export function TimerCard({
 }: TimerCardProps) {
   const [now, setNow] = useState<number>(() => Date.now());
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [completedSuccess, setCompletedSuccess] = useState(false);
   const [decisionDismissed, setDecisionDismissed] = useState(false);
   const [showAddTaskDialog, setShowAddTaskDialog] = useState(false);
   const expiredCallInProgressRef = useRef(false);
@@ -264,9 +266,14 @@ export function TimerCard({
       });
       const json = await res.json();
       if (res.ok && json.success) {
-        onSessionUpdated(null);
-        setDecisionDismissed(true);
-        onStatsRefresh();
+        setCompletedSuccess(true);
+        setTimeout(() => {
+          setCompletedSuccess(false);
+          onSessionUpdated(null);
+          setDecisionDismissed(true);
+          onStatsRefresh();
+        }, 400);
+        return;
       }
     } catch {
       // Handle error
@@ -337,58 +344,74 @@ export function TimerCard({
 
         <div className="flex flex-col items-center justify-center text-center w-full">
           {/* Top Status & Mode Caption */}
-          <div className="flex items-center gap-2 mb-3">
-            {currentSession ? (
-              <>
-                <Badge
-                  variant={currentSession.status === "running" ? "default" : "secondary"}
-                  className={cn(
-                    "text-[10.5px] font-semibold uppercase tracking-wider px-2.5 py-0.5",
-                    currentSession.status === "running" &&
-                      "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25",
-                    currentSession.status === "paused" &&
-                      "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
-                    currentSession.status === "awaiting_decision" &&
-                      "bg-primary/15 text-primary border border-primary/25"
-                  )}
+          <div className="flex items-center justify-center gap-2 mb-3 min-h-[26px]">
+            <AnimatePresence mode="wait">
+              {currentSession ? (
+                <motion.div
+                  key={`session-${currentSession.status}-${currentSession.mode}`}
+                  variants={statusPillVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="flex items-center gap-2"
                 >
-                  {currentSession.status === "running" ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Running
-                    </span>
-                  ) : currentSession.status === "paused" ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-amber-500" />
-                      Paused
+                  <Badge
+                    variant={currentSession.status === "running" ? "default" : "secondary"}
+                    className={cn(
+                      "text-[10.5px] font-semibold uppercase tracking-wider px-2.5 py-0.5",
+                      currentSession.status === "running" &&
+                        "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25",
+                      currentSession.status === "paused" &&
+                        "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
+                      currentSession.status === "awaiting_decision" &&
+                        "bg-primary/15 text-primary border border-primary/25"
+                    )}
+                  >
+                    {currentSession.status === "running" ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Running
+                      </span>
+                    ) : currentSession.status === "paused" ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="size-1.5 rounded-full bg-amber-500" />
+                        Paused
+                      </span>
+                    ) : (
+                      currentSession.status.replace("_", " ")
+                    )}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground/60">•</span>
+                  <span className="text-xs font-semibold text-muted-foreground capitalize">
+                    {currentSession.mode}
+                  </span>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="session-ready"
+                  variants={statusPillVariants}
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  className="flex items-center gap-2"
+                >
+                  <Badge
+                    variant="outline"
+                    className="text-[10.5px] font-semibold uppercase tracking-wider px-2.5 py-0.5 text-muted-foreground"
+                  >
+                    Ready
+                  </Badge>
+                  <span className="text-xs text-muted-foreground/60">•</span>
+                  {activeTask?.plannedDurationSeconds ? (
+                    <span className="text-xs text-muted-foreground font-medium">
+                      {Math.round(activeTask.plannedDurationSeconds / 60)}m Countdown
                     </span>
                   ) : (
-                    currentSession.status.replace("_", " ")
+                    <span className="text-xs text-muted-foreground font-medium">Stopwatch</span>
                   )}
-                </Badge>
-                <span className="text-xs text-muted-foreground/60">•</span>
-                <span className="text-xs font-semibold text-muted-foreground capitalize">
-                  {currentSession.mode}
-                </span>
-              </>
-            ) : (
-              <>
-                <Badge
-                  variant="outline"
-                  className="text-[10.5px] font-semibold uppercase tracking-wider px-2.5 py-0.5 text-muted-foreground"
-                >
-                  Ready
-                </Badge>
-                <span className="text-xs text-muted-foreground/60">•</span>
-                {activeTask?.plannedDurationSeconds ? (
-                  <span className="text-xs text-muted-foreground font-medium">
-                    {Math.round(activeTask.plannedDurationSeconds / 60)}m Countdown
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground font-medium">Stopwatch</span>
-                )}
-              </>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Task Selector or Active Task Title */}
@@ -568,10 +591,15 @@ export function TimerCard({
                   size="default"
                   disabled={pendingAction !== null}
                   onClick={handleCompleteSession}
-                  className="flex-1 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs press-scale flex items-center justify-center gap-1.5"
+                  className={cn(
+                    "flex-1 rounded-xl text-xs font-semibold shadow-xs press-scale flex items-center justify-center gap-1.5 transition-all",
+                    completedSuccess
+                      ? "bg-emerald-500 text-white scale-[1.02]"
+                      : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                  )}
                 >
                   <CheckCircle2 className="size-3.5" />
-                  <span>Complete</span>
+                  <span>{completedSuccess ? "Completed!" : "Complete"}</span>
                 </Button>
                 <Button
                   type="button"
@@ -603,10 +631,15 @@ export function TimerCard({
                   size="default"
                   disabled={pendingAction !== null}
                   onClick={handleCompleteSession}
-                  className="flex-1 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs press-scale flex items-center justify-center gap-1.5"
+                  className={cn(
+                    "flex-1 rounded-xl text-xs font-semibold shadow-xs press-scale flex items-center justify-center gap-1.5 transition-all",
+                    completedSuccess
+                      ? "bg-emerald-500 text-white scale-[1.02]"
+                      : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                  )}
                 >
                   <CheckCircle2 className="size-3.5" />
-                  <span>Complete</span>
+                  <span>{completedSuccess ? "Completed!" : "Complete"}</span>
                 </Button>
                 <Button
                   type="button"

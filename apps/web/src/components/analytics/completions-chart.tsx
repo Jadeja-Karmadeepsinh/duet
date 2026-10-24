@@ -147,6 +147,9 @@ export function CompletionsChart({
                 fill="var(--chart-2)"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={36}
+                isAnimationActive={true}
+                animationDuration={260}
+                animationEasing="ease-out"
               />
             </BarChart>
           </ResponsiveContainer>

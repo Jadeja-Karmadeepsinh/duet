@@ -14,6 +14,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { AddTaskDialog, type TaskItem } from "./add-task-dialog";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence, taskRowVariants } from "@/lib/motion";
 
 export type { TaskItem };
 
@@ -112,120 +113,127 @@ export function RecentTasks({
                 <Skeleton className="h-4 w-2/3 max-w-sm rounded-md" />
               </div>
             ) : tasks.length > 0 ? (
-              tasks.map((task) => {
-                const isSelected = selectedTaskId === task.id;
+              <AnimatePresence initial={false}>
+                {tasks.map((task) => {
+                  const isSelected = selectedTaskId === task.id;
 
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => onSelectTask(task.id)}
-                    className={cn(
-                      "p-3 sm:p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors group rounded-xl my-0.5",
-                      isSelected
-                        ? "bg-secondary font-medium"
-                        : "hover:bg-secondary/50"
-                    )}
-                  >
-                    {/* Left: Title, Description & Metadata */}
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Tooltip>
-                          <TooltipTrigger
+                  return (
+                    <motion.div
+                      key={task.id}
+                      layout
+                      variants={taskRowVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      onClick={() => onSelectTask(task.id)}
+                      className={cn(
+                        "p-3 sm:p-3.5 flex items-center justify-between gap-3 cursor-pointer transition-colors group rounded-xl my-0.5",
+                        isSelected
+                          ? "bg-secondary font-medium"
+                          : "hover:bg-secondary/50"
+                      )}
+                    >
+                      {/* Left: Title, Description & Metadata */}
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <span
+                                  className={cn(
+                                    "text-sm font-medium truncate block",
+                                    isSelected ? "text-primary font-semibold" : "text-foreground"
+                                  )}
+                                >
+                                  {task.title}
+                                </span>
+                              }
+                            />
+                            <TooltipContent side="top" className="text-xs max-w-xs">
+                              {task.title}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          {task.category && (
+                            <span className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
+                              {task.category}
+                            </span>
+                          )}
+                        </div>
+
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground truncate max-w-xs">
+                            {task.description}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                          <Clock className="size-3 shrink-0" />
+                          <span>
+                            {task.plannedDurationSeconds
+                              ? `${Math.round(task.plannedDurationSeconds / 60)}m countdown`
+                              : "Stopwatch"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          type="button"
+                          variant={isSelected ? "default" : "secondary"}
+                          size="sm"
+                          onClick={() => onSelectTask(task.id)}
+                          className={cn(
+                            "h-7 rounded-lg text-xs font-medium px-2.5 flex items-center gap-1 press-scale",
+                            isSelected
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <Play className="size-3 fill-current" />
+                          <span className="hidden sm:inline">{isSelected ? "Selected" : "Select"}</span>
+                        </Button>
+
+                        {/* Dropdown Menu for Edit & Archive */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
                             render={
-                              <span
-                                className={cn(
-                                  "text-sm font-medium truncate block",
-                                  isSelected ? "text-primary font-semibold" : "text-foreground"
-                                )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-xs"
+                                aria-label="Task options"
+                                className="text-muted-foreground hover:text-foreground size-7 rounded-lg"
                               >
-                                {task.title}
-                              </span>
+                                <MoreHorizontal className="size-3.5" />
+                                <span className="sr-only">Task actions</span>
+                              </Button>
                             }
                           />
-                          <TooltipContent side="top" className="text-xs max-w-xs">
-                            {task.title}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        {task.category && (
-                          <span className="text-[10px] text-muted-foreground bg-secondary px-2 py-0.5 rounded-md shrink-0">
-                            {task.category}
-                          </span>
-                        )}
-                      </div>
-
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground truncate max-w-xs">
-                          {task.description}
-                        </p>
-                      )}
-
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <Clock className="size-3 shrink-0" />
-                        <span>
-                          {task.plannedDurationSeconds
-                            ? `${Math.round(task.plannedDurationSeconds / 60)}m countdown`
-                            : "Stopwatch"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Right: Actions */}
-                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        type="button"
-                        variant={isSelected ? "default" : "secondary"}
-                        size="sm"
-                        onClick={() => onSelectTask(task.id)}
-                        className={cn(
-                          "h-7 rounded-lg text-xs font-medium px-2.5 flex items-center gap-1 press-scale",
-                          isSelected
-                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <Play className="size-3 fill-current" />
-                        <span className="hidden sm:inline">{isSelected ? "Selected" : "Select"}</span>
-                      </Button>
-
-                      {/* Dropdown Menu for Edit & Archive */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-xs"
-                              aria-label="Task options"
-                              className="text-muted-foreground hover:text-foreground size-7 rounded-lg"
+                          <DropdownMenuContent align="end" className="w-36 p-1 z-50">
+                            <DropdownMenuItem
+                              onClick={() => handleEditClick(task)}
+                              className="text-xs flex items-center gap-2 cursor-pointer py-1.5"
                             >
-                              <MoreHorizontal className="size-3.5" />
-                              <span className="sr-only">Task actions</span>
-                            </Button>
-                          }
-                        />
-                        <DropdownMenuContent align="end" className="w-36 p-1 z-50">
-                          <DropdownMenuItem
-                            onClick={() => handleEditClick(task)}
-                            className="text-xs flex items-center gap-2 cursor-pointer py-1.5"
-                          >
-                            <Edit2 className="size-3.5 text-muted-foreground" />
-                            <span>Edit Task</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            disabled={archivingId === task.id}
-                            onClick={() => handleArchive(task.id)}
-                            className="text-xs text-destructive focus:bg-destructive/10 focus:text-destructive flex items-center gap-2 cursor-pointer py-1.5"
-                          >
-                            <Archive className="size-3.5 text-destructive" />
-                            <span>Archive Task</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                );
-              })
+                              <Edit2 className="size-3.5 text-muted-foreground" />
+                              <span>Edit Task</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={archivingId === task.id}
+                              onClick={() => handleArchive(task.id)}
+                              className="text-xs text-destructive focus:bg-destructive/10 focus:text-destructive flex items-center gap-2 cursor-pointer py-1.5"
+                            >
+                              <Archive className="size-3.5 text-destructive" />
+                              <span>Archive Task</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             ) : (
               <div className="p-8 text-center flex flex-col items-center justify-center gap-2 text-muted-foreground">
                 <CheckCircle2 className="size-7 stroke-[1.5] text-muted-foreground/40" />

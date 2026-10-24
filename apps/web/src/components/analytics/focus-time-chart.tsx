@@ -167,6 +167,9 @@ export function FocusTimeChart({
                 fill="var(--chart-1)"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={36}
+                isAnimationActive={true}
+                animationDuration={260}
+                animationEasing="ease-out"
               />
             </BarChart>
           </ResponsiveContainer>

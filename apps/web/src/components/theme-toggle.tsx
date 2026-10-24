@@ -6,6 +6,7 @@ import { Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "@/lib/motion";
 
 const emptySubscribe = () => () => {};
 
@@ -56,11 +57,22 @@ export function ThemeToggle({
             )}
           >
             {mounted ? (
-              isDark ? (
-                <Moon className="size-4 text-primary transition-transform duration-200 rotate-0" />
-              ) : (
-                <Sun className="size-4 text-amber-500 transition-transform duration-200 rotate-0" />
-              )
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={isDark ? "dark" : "light"}
+                  initial={{ scale: 0.8, rotate: -15, opacity: 0 }}
+                  animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                  exit={{ scale: 0.8, rotate: 15, opacity: 0 }}
+                  transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex items-center justify-center"
+                >
+                  {isDark ? (
+                    <Moon className="size-4 text-primary" />
+                  ) : (
+                    <Sun className="size-4 text-amber-500" />
+                  )}
+                </motion.div>
+              </AnimatePresence>
             ) : (
               <span className="size-4 block" aria-hidden="true" />
             )}

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { motion, activePillSpring } from "@/lib/motion";
 
 export type AnalyticsRange = "7d" | "30d" | "90d" | "1y" | "lifetime";
 
@@ -49,13 +50,20 @@ export function RangeSelector({
               disabled={disabled}
               onClick={() => onRangeChange(r.id)}
               className={cn(
-                "px-3.5 py-1.5 text-xs font-medium rounded-xl transition-all select-none cursor-pointer",
+                "relative px-3.5 py-1.5 text-xs font-medium rounded-xl select-none cursor-pointer transition-colors",
                 isSelected
-                  ? "bg-card text-foreground font-semibold shadow-xs"
+                  ? "text-foreground font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {r.label}
+              {isSelected && (
+                <motion.span
+                  layoutId="active-range-pill"
+                  className="absolute inset-0 bg-card rounded-xl shadow-xs -z-0"
+                  transition={activePillSpring}
+                />
+              )}
+              <span className="relative z-10">{r.label}</span>
             </button>
           );
         })}

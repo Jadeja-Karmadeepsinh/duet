@@ -28,6 +28,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { motion, activePillSpring } from "@/lib/motion";
 
 interface AppShellProps {
   title: string;
@@ -127,21 +128,28 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group flex items-center gap-3 px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors press-scale",
+                  "relative group flex items-center gap-3 px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors press-scale",
                   active
-                    ? "bg-secondary text-foreground font-semibold shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                    ? "text-foreground font-semibold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
                 )}
               >
+                {active && (
+                  <motion.span
+                    layoutId="sidebar-active-tab"
+                    className="absolute inset-0 rounded-xl bg-secondary shadow-2xs -z-0"
+                    transition={activePillSpring}
+                  />
+                )}
                 <Icon
                   className={cn(
-                    "size-4 shrink-0 transition-colors",
+                    "relative z-10 size-4 shrink-0 transition-colors",
                     active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                   )}
                 />
-                <span className="truncate">{item.name}</span>
+                <span className="relative z-10 truncate">{item.name}</span>
                 {active && (
-                  <span className="ml-auto size-1.5 rounded-full bg-primary" aria-hidden="true" />
+                  <span className="relative z-10 ml-auto size-1.5 rounded-full bg-primary" aria-hidden="true" />
                 )}
               </Link>
             );
@@ -304,11 +312,18 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl transition-all press-scale min-w-[64px]",
+                "relative flex flex-col items-center justify-center gap-1 py-1 px-3 rounded-xl transition-all press-scale min-w-[64px]",
                 active ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <div className={cn("relative p-1 rounded-lg transition-colors", active && "bg-primary/10")}>
+              {active && (
+                <motion.span
+                  layoutId="mobile-active-pill"
+                  className="absolute inset-0 rounded-xl bg-secondary/80 -z-0"
+                  transition={activePillSpring}
+                />
+              )}
+              <div className="relative z-10 p-1 rounded-lg">
                 <Icon className="size-4.5" />
                 {active && (
                   <span
@@ -317,7 +332,7 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
                   />
                 )}
               </div>
-              <span className="text-[10.5px] leading-none tracking-tight">{item.name}</span>
+              <span className="relative z-10 text-[10.5px] leading-none tracking-tight">{item.name}</span>
             </Link>
           );
         })}

@@ -3,6 +3,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Calendar, Clock } from "lucide-react";
+import { motion, activePillSpring } from "@/lib/motion";
 
 export type LeaderboardPeriod = "today" | "7d";
 export type LeaderboardSlot = "10:00" | "18:00" | "22:00";
@@ -47,14 +48,21 @@ export function LeaderboardTabs({
           disabled={disabled}
           onClick={() => onPeriodChange("today")}
           className={cn(
-            "px-4 py-1.5 text-xs font-medium rounded-xl transition-all select-none cursor-pointer flex items-center gap-1.5",
+            "relative px-4 py-1.5 text-xs font-medium rounded-xl select-none cursor-pointer flex items-center gap-1.5 transition-colors",
             period === "today"
-              ? "bg-card text-foreground font-semibold shadow-xs"
+              ? "text-foreground font-semibold"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Clock className="size-3.5" />
-          <span>Today</span>
+          {period === "today" && (
+            <motion.span
+              layoutId="leaderboard-period-pill"
+              className="absolute inset-0 bg-card rounded-xl shadow-xs -z-0"
+              transition={activePillSpring}
+            />
+          )}
+          <Clock className="relative z-10 size-3.5" />
+          <span className="relative z-10">Today</span>
         </button>
 
         <button
@@ -64,14 +72,21 @@ export function LeaderboardTabs({
           disabled={disabled}
           onClick={() => onPeriodChange("7d")}
           className={cn(
-            "px-4 py-1.5 text-xs font-medium rounded-xl transition-all select-none cursor-pointer flex items-center gap-1.5",
+            "relative px-4 py-1.5 text-xs font-medium rounded-xl select-none cursor-pointer flex items-center gap-1.5 transition-colors",
             period === "7d"
-              ? "bg-card text-foreground font-semibold shadow-xs"
+              ? "text-foreground font-semibold"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Calendar className="size-3.5" />
-          <span>Last 7 Days</span>
+          {period === "7d" && (
+            <motion.span
+              layoutId="leaderboard-period-pill"
+              className="absolute inset-0 bg-card rounded-xl shadow-xs -z-0"
+              transition={activePillSpring}
+            />
+          )}
+          <Calendar className="relative z-10 size-3.5" />
+          <span className="relative z-10">Last 7 Days</span>
         </button>
       </div>
 
@@ -91,13 +106,20 @@ export function LeaderboardTabs({
                   disabled={disabled}
                   onClick={() => onSlotChange(slot)}
                   className={cn(
-                    "px-3 py-1 text-xs font-mono font-medium rounded-xl transition-all cursor-pointer",
+                    "relative px-3 py-1 text-xs font-mono font-medium rounded-xl select-none cursor-pointer transition-colors",
                     isSelected
-                      ? "bg-card text-foreground font-semibold shadow-xs border border-border/60"
+                      ? "text-foreground font-semibold"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {SLOT_LABELS[slot]}
+                  {isSelected && (
+                    <motion.span
+                      layoutId="leaderboard-slot-pill"
+                      className="absolute inset-0 bg-card rounded-xl shadow-xs border border-border/60 -z-0"
+                      transition={activePillSpring}
+                    />
+                  )}
+                  <span className="relative z-10">{SLOT_LABELS[slot]}</span>
                 </button>
               );
             })}
