@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/lib/auth-context";
 import { Calendar } from "lucide-react";
@@ -31,6 +31,11 @@ export default function DashboardPage() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingTasks, setLoadingTasks] = useState(true);
 
+  // Race-condition protection refs
+  const sessionFetchSeqRef = useRef(0);
+  const latestUpdatedAtRef = useRef<number>(0);
+  const inFlightFetchRef = useRef<AbortController | null>(null);
+
   // Time-aware greeting in Asia/Kolkata
   const getGreeting = () => {
     try {
@@ -50,23 +55,68 @@ export default function DashboardPage() {
     }
   };
 
-  // 1. Fetch current work session
+  // 1. Fetch current work session with race condition guards
   const fetchCurrentSession = useCallback(async () => {
+    // Abort any prior in-flight GET request
+    if (inFlightFetchRef.current) {
+      inFlightFetchRef.current.abort();
+    }
+    const controller = new AbortController();
+    inFlightFetchRef.current = controller;
+    const reqSeq = ++sessionFetchSeqRef.current;
+
     try {
-      const res = await fetch("/api/v1/work-sessions/current");
+      const res = await fetch("/api/v1/work-sessions/current", {
+        signal: controller.signal,
+      });
       if (res.ok) {
         const json = await res.json();
+        // Guard against stale response if a newer fetch or mutation ran
+        if (reqSeq < sessionFetchSeqRef.current) return;
+
         if (json.success) {
-          setCurrentSession(json.data.session);
-          if (json.data.session?.taskId) {
-            setSelectedTaskId(json.data.session.taskId);
+          const incomingSession: ActiveSession | null = json.data.session;
+          if (incomingSession?.updatedAt) {
+            const incomingTime = new Date(incomingSession.updatedAt).getTime();
+            if (incomingTime < latestUpdatedAtRef.current) {
+              // Stale response from before a newer mutation; discard
+              return;
+            }
+            latestUpdatedAtRef.current = incomingTime;
+          }
+
+          setCurrentSession(incomingSession);
+          if (incomingSession?.taskId) {
+            setSelectedTaskId(incomingSession.taskId);
           }
         }
       }
-    } catch {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return; // Expected cancellation on superseding request
+      }
       // Ignore network errors quietly
     } finally {
-      setLoadingSession(false);
+      if (reqSeq === sessionFetchSeqRef.current) {
+        setLoadingSession(false);
+      }
+    }
+  }, []);
+
+  const handleSessionUpdated = useCallback((session: ActiveSession | null) => {
+    // Invalidate in-flight GET requests and advance sequence
+    if (inFlightFetchRef.current) {
+      inFlightFetchRef.current.abort();
+    }
+    sessionFetchSeqRef.current++;
+    if (session?.updatedAt) {
+      latestUpdatedAtRef.current = new Date(session.updatedAt).getTime();
+    } else {
+      latestUpdatedAtRef.current = Date.now();
+    }
+    setCurrentSession(session);
+    if (session?.taskId) {
+      setSelectedTaskId(session.taskId);
     }
   }, []);
 
@@ -207,10 +257,7 @@ export default function DashboardPage() {
               currentSession={currentSession}
               tasks={tasks}
               loadingSession={loadingSession}
-              onSessionUpdated={(session) => {
-                setCurrentSession(session);
-                if (session?.taskId) setSelectedTaskId(session.taskId);
-              }}
+              onSessionUpdated={handleSessionUpdated}
               onStatsRefresh={handleStatsRefresh}
               onTaskCreated={handleTaskCreated}
               selectedTaskId={selectedTaskId}

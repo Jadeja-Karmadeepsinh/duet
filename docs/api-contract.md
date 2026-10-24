@@ -243,7 +243,7 @@ All work session routes require authentication via HttpOnly `focus_session` cook
 - **Idempotency**: `complete`, `stop`, and `expire` are fully idempotent. Repeated completion calls return the existing session and completion without duplicate rows.
 
 ### `GET /api/v1/work-sessions/current`
-Retrieves the currently active (`running` or `awaiting_decision`) session for the authenticated profile with server-derived metrics. Reconciles expired countdown sessions on fetch/reload.
+Retrieves the currently active (`running`, `paused`, or `awaiting_decision`) session for the authenticated profile with server-derived metrics. When paused, metrics reflect accumulated tracked seconds and activeSegmentStartedAt is null. Reconciles expired countdown sessions on fetch/reload.
 - **Response** (`200 OK` - Active session):
 ```json
 {

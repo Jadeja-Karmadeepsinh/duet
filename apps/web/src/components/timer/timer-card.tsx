@@ -23,6 +23,8 @@ import {
 import { DecisionDialog } from "./decision-dialog";
 import { AddTaskDialog } from "../tasks/add-task-dialog";
 import { cn } from "@/lib/utils";
+import { formatTimerDisplay } from "@/lib/date";
+import { toast } from "sonner";
 import { motion, AnimatePresence, statusPillVariants } from "@/lib/motion";
 
 export interface ActiveSession {
@@ -39,6 +41,7 @@ export interface ActiveSession {
   isExpired: boolean;
   staleRunningWarning: boolean;
   activeSegmentStartedAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface TaskItem {
@@ -164,18 +167,6 @@ export function TimerCard({
 
   const showDecisionDialog = currentSession?.status === "awaiting_decision" && !decisionDismissed;
 
-  // Format MM:SS or HH:MM:SS
-  const formatTime = (totalSec: number) => {
-    const hrs = Math.floor(totalSec / 3600);
-    const mins = Math.floor((totalSec % 3600) / 60);
-    const secs = totalSec % 60;
-
-    if (hrs > 0) {
-      return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    }
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
   // Progress ring math (Strictly for Countdown mode, not fake for stopwatch)
   const radius = 95;
   const strokeWidth = 7;
@@ -195,8 +186,8 @@ export function TimerCard({
 
   // API Action Mutators
   const handleStartSession = async () => {
-    if (!activeTask) {
-      setShowAddTaskDialog(true);
+    if (!activeTask || pendingAction) {
+      if (!activeTask) setShowAddTaskDialog(true);
       return;
     }
 
@@ -211,16 +202,19 @@ export function TimerCard({
       if (res.ok && json.success) {
         onSessionUpdated(json.data.session);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to start session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle network error
+      toast.error("Network error while starting session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handlePauseSession = async () => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction("pause");
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/pause`, {
@@ -230,16 +224,19 @@ export function TimerCard({
       if (res.ok && json.success) {
         onSessionUpdated(json.data.session);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to pause session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while pausing session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleResumeSession = async () => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction("resume");
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/resume`, {
@@ -249,16 +246,19 @@ export function TimerCard({
       if (res.ok && json.success) {
         onSessionUpdated(json.data.session);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to resume session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while resuming session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleCompleteSession = async () => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction("complete");
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/complete`, {
@@ -274,16 +274,19 @@ export function TimerCard({
           onStatsRefresh();
         }, 400);
         return;
+      } else {
+        toast.error(json?.error?.message || "Failed to complete session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while completing session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleStopSession = async () => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction("stop");
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/stop`, {
@@ -294,16 +297,19 @@ export function TimerCard({
         onSessionUpdated(null);
         setDecisionDismissed(true);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to end session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while ending session.");
     } finally {
       setPendingAction(null);
     }
   };
 
   const handleExtendSession = async (extensionSeconds: number) => {
-    if (!currentSession) return;
+    if (!currentSession || pendingAction) return;
     setPendingAction(`extend-${extensionSeconds}`);
     try {
       const res = await fetch(`/api/v1/work-sessions/${currentSession.id}/extend`, {
@@ -316,9 +322,12 @@ export function TimerCard({
         onSessionUpdated(json.data.session);
         setDecisionDismissed(true);
         onStatsRefresh();
+      } else {
+        toast.error(json?.error?.message || "Failed to extend session.");
+        onStatsRefresh();
       }
     } catch {
-      // Handle error
+      toast.error("Network error while extending session.");
     } finally {
       setPendingAction(null);
     }
@@ -539,14 +548,21 @@ export function TimerCard({
             </svg>
 
             {/* Fixed-Width Tabular Digits Surface */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-4 select-none min-w-0 pointer-events-none">
               <span
-                className="font-mono text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground tabular-nums drop-shadow-xs"
+                className={cn(
+                  "font-mono font-bold tracking-tight text-foreground tabular-nums drop-shadow-xs transition-all duration-200 select-none",
+                  displaySeconds >= 360000
+                    ? "text-xl sm:text-2xl md:text-3xl"
+                    : displaySeconds >= 3600
+                    ? "text-2xl sm:text-3xl md:text-4xl"
+                    : "text-4xl sm:text-5xl md:text-6xl"
+                )}
                 aria-live="polite"
               >
-                {formatTime(displaySeconds)}
+                {formatTimerDisplay(displaySeconds)}
               </span>
-              <span className="text-[11px] font-semibold text-muted-foreground mt-1 tracking-wider uppercase">
+              <span className="text-[11px] font-semibold text-muted-foreground mt-1 tracking-wider uppercase truncate max-w-[160px]">
                 {currentSession?.mode === "countdown"
                   ? currentSession.status === "awaiting_decision"
                     ? "Time's Up"
