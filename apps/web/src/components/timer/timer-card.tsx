@@ -103,13 +103,13 @@ export function TimerCard({
         }
       }
     } catch {
-      // Ignore network error; fallback on next polling reconcile
+      // Ignore network error; fallback on polling reconcile
     } finally {
       expiredCallInProgressRef.current = false;
     }
   }, [onSessionUpdated]);
 
-  // Smooth live ticking timer
+  // Live ticking timer
   useEffect(() => {
     if (currentSession?.status !== "running") return;
     const interval = setInterval(() => {
@@ -174,21 +174,18 @@ export function TimerCard({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Progress ring math
-  const radius = 100;
-  const strokeWidth = 8;
+  // Progress ring math (Strictly for Countdown mode, not fake for stopwatch)
+  const radius = 95;
+  const strokeWidth = 7;
   const circumference = 2 * Math.PI * radius;
 
   let progress = 0;
-  if (currentSession) {
-    if (currentSession.mode === "countdown" && currentSession.targetDurationSeconds) {
-      const totalElapsed = currentSession.targetDurationSeconds - displaySeconds;
-      progress = Math.min(1, Math.max(0, totalElapsed / currentSession.targetDurationSeconds));
-    } else if (currentSession.mode === "stopwatch") {
-      // Stopwatch: cyclical 60-second sweep
-      progress = (displaySeconds % 60) / 60;
-    }
-  } else if (activeTask?.plannedDurationSeconds) {
+  const isCountdown = currentSession ? currentSession.mode === "countdown" : !!activeTask?.plannedDurationSeconds;
+
+  if (currentSession && currentSession.mode === "countdown" && currentSession.targetDurationSeconds) {
+    const totalElapsed = currentSession.targetDurationSeconds - displaySeconds;
+    progress = Math.min(1, Math.max(0, totalElapsed / currentSession.targetDurationSeconds));
+  } else if (!currentSession && activeTask?.plannedDurationSeconds) {
     progress = 0; // ready state
   }
 
@@ -324,66 +321,85 @@ export function TimerCard({
     <>
       <div
         className={cn(
-          "relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 md:p-10 shadow-sm transition-all",
-          currentSession?.status === "running" && "ring-1 ring-[#0071e3]/30"
+          "relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8 surface-elevation transition-all flex flex-col justify-between min-h-[440px]",
+          currentSession?.status === "running" && "ring-1 ring-primary/40 shadow-sm"
         )}
       >
         {/* Stale Running Recovery Warning Banner */}
         {currentSession?.staleRunningWarning && (
-          <div className="mb-6 flex items-center gap-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+          <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-700 dark:text-amber-400">
             <AlertTriangle className="size-4 shrink-0 text-amber-500" />
             <div className="flex-1">
-              <strong>Session Recovery Notice:</strong> This session has been running continuously for over 12 hours. You can safely complete or stop it without losing recorded focus time.
+              <strong>Session Recovery Notice:</strong> This session has been running for over 12 hours. You can complete or stop it without losing recorded focus time.
             </div>
           </div>
         )}
 
-        <div className="flex flex-col items-center justify-center text-center">
-          {/* Top Status & Mode Indicator */}
-          <div className="flex items-center gap-2 mb-4">
+        <div className="flex flex-col items-center justify-center text-center w-full">
+          {/* Top Status & Mode Caption */}
+          <div className="flex items-center gap-2 mb-3">
             {currentSession ? (
               <>
                 <Badge
                   variant={currentSession.status === "running" ? "default" : "secondary"}
                   className={cn(
-                    "text-[11px] font-medium uppercase tracking-wider px-2.5 py-0.5",
-                    currentSession.status === "running" && "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 animate-pulse",
-                    currentSession.status === "paused" && "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
-                    currentSession.status === "awaiting_decision" && "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/25"
+                    "text-[10.5px] font-semibold uppercase tracking-wider px-2.5 py-0.5",
+                    currentSession.status === "running" &&
+                      "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25",
+                    currentSession.status === "paused" &&
+                      "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25",
+                    currentSession.status === "awaiting_decision" &&
+                      "bg-primary/15 text-primary border border-primary/25"
                   )}
                 >
-                  {currentSession.status.replace("_", " ")}
+                  {currentSession.status === "running" ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Running
+                    </span>
+                  ) : currentSession.status === "paused" ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-amber-500" />
+                      Paused
+                    </span>
+                  ) : (
+                    currentSession.status.replace("_", " ")
+                  )}
                 </Badge>
-                <span className="text-xs text-muted-foreground font-medium">•</span>
+                <span className="text-xs text-muted-foreground/60">•</span>
                 <span className="text-xs font-semibold text-muted-foreground capitalize">
                   {currentSession.mode}
                 </span>
               </>
             ) : (
               <>
-                <Badge variant="outline" className="text-[11px] font-normal px-2.5 py-0.5 text-muted-foreground">
-                  Ready to Focus
+                <Badge
+                  variant="outline"
+                  className="text-[10.5px] font-semibold uppercase tracking-wider px-2.5 py-0.5 text-muted-foreground"
+                >
+                  Ready
                 </Badge>
+                <span className="text-xs text-muted-foreground/60">•</span>
                 {activeTask?.plannedDurationSeconds ? (
                   <span className="text-xs text-muted-foreground font-medium">
-                    • {Math.round(activeTask.plannedDurationSeconds / 60)}m Countdown
+                    {Math.round(activeTask.plannedDurationSeconds / 60)}m Countdown
                   </span>
                 ) : (
-                  <span className="text-xs text-muted-foreground font-medium">• Stopwatch</span>
+                  <span className="text-xs text-muted-foreground font-medium">Stopwatch</span>
                 )}
               </>
             )}
           </div>
 
           {/* Task Selector or Active Task Title */}
-          <div className="mb-6 max-w-md w-full">
+          <div className="mb-4 max-w-md w-full">
             {currentSession ? (
-              <div className="flex flex-col items-center gap-1.5">
-                <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground truncate max-w-xs sm:max-w-md">
+              <div className="flex flex-col items-center gap-1">
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground truncate max-w-xs sm:max-w-md">
                   {currentSession.taskTitleSnapshot}
-                </h3>
+                </h2>
                 {currentSession.categorySnapshot && (
-                  <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-secondary text-muted-foreground">
                     {currentSession.categorySnapshot}
                   </span>
                 )}
@@ -391,102 +407,123 @@ export function TimerCard({
             ) : (
               <div className="flex items-center justify-center gap-2">
                 {tasks.length > 0 ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="outline"
-                          className="rounded-2xl px-4 py-2 text-sm font-semibold border-border hover:bg-secondary/60 flex items-center gap-2 max-w-[280px] sm:max-w-[340px] truncate"
-                        >
-                          <span className="truncate">{activeTask?.title || "Select a task"}</span>
-                          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-                        </Button>
-                      }
-                    />
-                    <DropdownMenuContent className="w-72 rounded-2xl p-1.5 shadow-lg border border-border">
-                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                        Select Focus Task
-                      </div>
-                      {tasks.map((task) => (
+                  <div className="flex items-center gap-2 max-w-full">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="outline"
+                            className="rounded-xl px-3.5 py-1.5 text-xs font-semibold border-border hover:bg-secondary/60 flex items-center gap-2 max-w-[260px] sm:max-w-[320px] truncate"
+                          >
+                            <span className="truncate">{activeTask?.title || "Select focus task"}</span>
+                            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+                          </Button>
+                        }
+                      />
+                      <DropdownMenuContent className="w-72 rounded-xl p-1.5 shadow-lg border border-border z-50">
+                        <div className="px-2 py-1 text-[11px] font-semibold text-muted-foreground uppercase">
+                          Select Focus Task
+                        </div>
+                        {tasks.map((task) => (
+                          <DropdownMenuItem
+                            key={task.id}
+                            onClick={() => onSelectTaskId(task.id)}
+                            className={cn(
+                              "rounded-lg px-2.5 py-1.5 text-xs flex items-center justify-between cursor-pointer",
+                              selectedTaskId === task.id && "bg-secondary font-semibold"
+                            )}
+                          >
+                            <span className="truncate">{task.title}</span>
+                            <span className="text-[11px] text-muted-foreground shrink-0 ml-2">
+                              {task.plannedDurationSeconds
+                                ? `${Math.round(task.plannedDurationSeconds / 60)}m`
+                                : "Stopwatch"}
+                            </span>
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator className="my-1" />
                         <DropdownMenuItem
-                          key={task.id}
-                          onClick={() => onSelectTaskId(task.id)}
-                          className={cn(
-                            "rounded-xl px-2.5 py-2 text-xs flex items-center justify-between cursor-pointer",
-                            selectedTaskId === task.id && "bg-secondary font-semibold"
-                          )}
+                          onClick={() => setShowAddTaskDialog(true)}
+                          className="rounded-lg px-2.5 py-1.5 text-xs text-primary font-medium flex items-center gap-2 cursor-pointer"
                         >
-                          <span className="truncate">{task.title}</span>
-                          <span className="text-[11px] text-muted-foreground shrink-0 ml-2">
-                            {task.plannedDurationSeconds ? `${Math.round(task.plannedDurationSeconds / 60)}m` : "Stopwatch"}
-                          </span>
+                          <Plus className="size-3.5" />
+                          <span>New Task</span>
                         </DropdownMenuItem>
-                      ))}
-                      <DropdownMenuSeparator className="my-1" />
-                      <DropdownMenuItem
-                        onClick={() => setShowAddTaskDialog(true)}
-                        className="rounded-xl px-2.5 py-2 text-xs text-[#0071e3] font-medium flex items-center gap-2 cursor-pointer"
-                      >
-                        <Plus className="size-3.5" />
-                        <span>Create New Task</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setShowAddTaskDialog(true)}
+                      aria-label="Create new task"
+                      title="Create new task"
+                      className="text-muted-foreground hover:text-foreground shrink-0"
+                    >
+                      <Plus className="size-3.5" />
+                    </Button>
+                  </div>
                 ) : (
                   <Button
                     variant="outline"
                     onClick={() => setShowAddTaskDialog(true)}
-                    className="rounded-2xl px-4 py-2 text-xs font-medium border-dashed border-border hover:border-[#0071e3] text-muted-foreground hover:text-[#0071e3] flex items-center gap-1.5"
+                    className="rounded-xl px-3.5 py-2 text-xs font-medium border-dashed border-border hover:border-primary text-muted-foreground hover:text-primary flex items-center gap-1.5"
                   >
                     <Plus className="size-3.5" />
-                    <span>Create your first task</span>
+                    <span>Create first task</span>
                   </Button>
                 )}
               </div>
             )}
           </div>
 
-          {/* Central Timer Surface with Progress Ring */}
-          <div className="relative size-64 sm:size-72 flex items-center justify-center mb-8">
+          {/* Central Timer Surface: SVG Ring (Countdown only) or Ambient Track (Stopwatch) */}
+          <div className="relative size-56 sm:size-64 flex items-center justify-center my-2 select-none">
             <svg
               className="size-full -rotate-90 transform"
-              viewBox="0 0 220 220"
+              viewBox="0 0 210 210"
               aria-hidden="true"
             >
               {/* Background Track Circle */}
               <circle
-                cx="110"
-                cy="110"
+                cx="105"
+                cy="105"
                 r={radius}
                 stroke="currentColor"
                 strokeWidth={strokeWidth}
                 fill="transparent"
-                className="text-border/40 dark:text-secondary"
+                className="text-border/40"
               />
-              {/* Active Progress Ring */}
-              <circle
-                cx="110"
-                cy="110"
-                r={radius}
-                stroke={currentSession?.status === "paused" ? "#f59e0b" : "#0071e3"}
-                strokeWidth={strokeWidth}
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                fill="transparent"
-                className="transition-all duration-500 ease-out"
-              />
+              {/* Active Progress Ring - strictly for Countdown mode */}
+              {isCountdown && (
+                <circle
+                  cx="105"
+                  cy="105"
+                  r={radius}
+                  stroke="currentColor"
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  fill="transparent"
+                  className={cn(
+                    "transition-all duration-500 ease-out",
+                    currentSession?.status === "paused" ? "text-amber-500" : "text-primary"
+                  )}
+                />
+              )}
             </svg>
 
-            {/* Digits Surface */}
+            {/* Fixed-Width Tabular Digits Surface */}
             <div className="absolute inset-0 flex flex-col items-center justify-center select-none">
               <span
-                className="font-mono text-5xl sm:text-6xl font-bold tracking-tight text-foreground tabular-nums drop-shadow-xs"
+                className="font-mono text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground tabular-nums drop-shadow-xs"
                 aria-live="polite"
               >
                 {formatTime(displaySeconds)}
               </span>
-              <span className="text-xs font-medium text-muted-foreground mt-1 tracking-wide uppercase">
+              <span className="text-[11px] font-semibold text-muted-foreground mt-1 tracking-wider uppercase">
                 {currentSession?.mode === "countdown"
                   ? currentSession.status === "awaiting_decision"
                     ? "Time's Up"
@@ -499,17 +536,17 @@ export function TimerCard({
           </div>
 
           {/* Action Controls */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-2.5 mt-4 w-full max-w-sm">
             {!currentSession ? (
-              /* No active session: Start Focus Button */
+              /* Idle: Primary Start Focus Button */
               <Button
                 type="button"
                 size="lg"
                 disabled={pendingAction !== null || loadingSession}
                 onClick={handleStartSession}
-                className="rounded-2xl px-8 py-6 text-base font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-md hover:shadow-lg transition-all active:scale-[0.98] flex items-center gap-2.5"
+                className="w-full sm:w-auto min-w-[180px] rounded-xl px-6 py-2.5 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2"
               >
-                <Play className="size-5 fill-white" />
+                <Play className="size-4 fill-current" />
                 <span>Start Focus</span>
               </Button>
             ) : currentSession.status === "running" ? (
@@ -518,78 +555,78 @@ export function TimerCard({
                 <Button
                   type="button"
                   variant="outline"
-                  size="lg"
+                  size="default"
                   disabled={pendingAction !== null}
                   onClick={handlePauseSession}
-                  className="rounded-2xl px-6 py-5 text-sm font-semibold border-border hover:bg-secondary transition-all flex items-center gap-2"
+                  className="flex-1 rounded-xl text-xs font-semibold press-scale flex items-center justify-center gap-1.5"
                 >
-                  <Pause className="size-4" />
+                  <Pause className="size-3.5" />
                   <span>Pause</span>
                 </Button>
                 <Button
                   type="button"
-                  size="lg"
+                  size="default"
                   disabled={pendingAction !== null}
                   onClick={handleCompleteSession}
-                  className="rounded-2xl px-7 py-5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all flex items-center gap-2"
+                  className="flex-1 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs press-scale flex items-center justify-center gap-1.5"
                 >
-                  <CheckCircle2 className="size-4.5" />
+                  <CheckCircle2 className="size-3.5" />
                   <span>Complete</span>
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
-                  size="lg"
+                  size="default"
                   disabled={pendingAction !== null}
                   onClick={handleStopSession}
-                  className="rounded-2xl px-5 py-5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-1.5"
+                  className="rounded-xl text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 press-scale flex items-center justify-center gap-1"
                 >
-                  <Square className="size-3.5" />
-                  <span>Stop</span>
+                  <Square className="size-3" />
+                  <span>End</span>
                 </Button>
               </>
             ) : currentSession.status === "paused" ? (
-              /* Paused Session: Resume, Complete, Stop */
+              /* Paused Session: Resume (Primary), Complete, Stop */
               <>
                 <Button
                   type="button"
-                  size="lg"
+                  size="default"
                   disabled={pendingAction !== null}
                   onClick={handleResumeSession}
-                  className="rounded-2xl px-8 py-5 text-sm font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all flex items-center gap-2"
+                  className="flex-1 rounded-xl text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-1.5"
                 >
-                  <Play className="size-4 fill-white" />
+                  <Play className="size-3.5 fill-current" />
                   <span>Resume</span>
                 </Button>
                 <Button
                   type="button"
-                  size="lg"
+                  size="default"
                   disabled={pendingAction !== null}
                   onClick={handleCompleteSession}
-                  className="rounded-2xl px-6 py-5 text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all flex items-center gap-2"
+                  className="flex-1 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs press-scale flex items-center justify-center gap-1.5"
                 >
-                  <CheckCircle2 className="size-4.5" />
+                  <CheckCircle2 className="size-3.5" />
                   <span>Complete</span>
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
-                  size="lg"
+                  size="default"
                   disabled={pendingAction !== null}
                   onClick={handleStopSession}
-                  className="rounded-2xl px-5 py-5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-1.5"
+                  className="rounded-xl text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 press-scale flex items-center justify-center gap-1"
                 >
-                  <Square className="size-3.5" />
-                  <span>Stop</span>
+                  <Square className="size-3" />
+                  <span>End</span>
                 </Button>
               </>
             ) : currentSession.status === "awaiting_decision" ? (
               /* Awaiting Decision */
               <Button
                 type="button"
-                size="lg"
+                size="default"
                 onClick={() => setDecisionDismissed(false)}
-                className="rounded-2xl px-8 py-5 text-sm font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-md transition-all flex items-center gap-2"
+                className="w-full sm:w-auto rounded-xl px-6 py-2.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs press-scale flex items-center justify-center gap-2"
               >
                 <Sparkles className="size-4" />
                 <span>Review Decision</span>
@@ -599,7 +636,7 @@ export function TimerCard({
         </div>
       </div>
 
-      {/* Decision Dialog Modal */}
+      {/* Target Reached Decision Dialog */}
       <DecisionDialog
         open={showDecisionDialog}
         session={
@@ -619,7 +656,7 @@ export function TimerCard({
         onStop={handleStopSession}
       />
 
-      {/* Add Task Modal */}
+      {/* Add Task Dialog */}
       <AddTaskDialog
         open={showAddTaskDialog}
         onOpenChange={setShowAddTaskDialog}

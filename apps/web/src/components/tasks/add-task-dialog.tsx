@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Clock, Tag, AlertCircle } from "lucide-react";
+import { Plus, Clock, Tag, AlertCircle, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = [
@@ -23,15 +23,16 @@ const CATEGORIES = [
 ] as const;
 
 const DURATION_PRESETS = [
-  { label: "15 min", seconds: 900 },
-  { label: "25 min (Pomodoro)", seconds: 1500 },
-  { label: "45 min", seconds: 2700 },
-  { label: "60 min", seconds: 3600 },
+  { label: "15m", seconds: 900 },
+  { label: "25m (Pomodoro)", seconds: 1500 },
+  { label: "45m", seconds: 2700 },
+  { label: "60m (Deep Work)", seconds: 3600 },
 ] as const;
 
-interface TaskItem {
+export interface TaskItem {
   id: string;
   title: string;
+  description?: string | null;
   category: string | null;
   plannedDurationSeconds: number | null;
   status: string;
@@ -42,19 +43,50 @@ interface AddTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTaskCreated: (task: TaskItem) => void;
+  taskToEdit?: TaskItem | null;
+  onTaskUpdated?: (task: TaskItem) => void;
 }
 
-export function AddTaskDialog({
-  open,
+function getInitialBudget(taskToEdit?: TaskItem | null) {
+  if (!taskToEdit || taskToEdit.plannedDurationSeconds === 1500) {
+    return { mode: "preset" as const, preset: 1500, custom: "30" };
+  }
+  if (taskToEdit.plannedDurationSeconds === null) {
+    return { mode: "stopwatch" as const, preset: 1500, custom: "30" };
+  }
+  const matching = DURATION_PRESETS.find((p) => p.seconds === taskToEdit.plannedDurationSeconds);
+  if (matching) {
+    return { mode: "preset" as const, preset: matching.seconds, custom: "30" };
+  }
+  return {
+    mode: "custom" as const,
+    preset: 1500,
+    custom: String(Math.round(taskToEdit.plannedDurationSeconds / 60)),
+  };
+}
+
+interface AddTaskFormProps {
+  taskToEdit?: TaskItem | null;
+  onOpenChange: (open: boolean) => void;
+  onTaskCreated: (task: TaskItem) => void;
+  onTaskUpdated?: (task: TaskItem) => void;
+}
+
+function AddTaskForm({
+  taskToEdit,
   onOpenChange,
   onTaskCreated,
-}: AddTaskDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<string>("Coding");
-  const [budgetMode, setBudgetMode] = useState<"preset" | "stopwatch" | "custom">("preset");
-  const [selectedPresetSeconds, setSelectedPresetSeconds] = useState<number>(1500); // 25m default
-  const [customMinutes, setCustomMinutes] = useState<string>("30");
+  onTaskUpdated,
+}: AddTaskFormProps) {
+  const isEditing = !!taskToEdit;
+  const initialBudget = getInitialBudget(taskToEdit);
+
+  const [title, setTitle] = useState(taskToEdit?.title ?? "");
+  const [description, setDescription] = useState(taskToEdit?.description ?? "");
+  const [category, setCategory] = useState<string>(taskToEdit?.category ?? "Coding");
+  const [budgetMode, setBudgetMode] = useState<"preset" | "stopwatch" | "custom">(initialBudget.mode);
+  const [selectedPresetSeconds, setSelectedPresetSeconds] = useState<number>(initialBudget.preset);
+  const [customMinutes, setCustomMinutes] = useState<string>(initialBudget.custom);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -87,28 +119,48 @@ export function AddTaskDialog({
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/v1/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          description: description.trim() || undefined,
-          plannedDurationSeconds,
-          category: category || undefined,
-        }),
-      });
+      if (isEditing && taskToEdit) {
+        const res = await fetch(`/api/v1/tasks/${taskToEdit.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: trimmedTitle,
+            description: description.trim() || null,
+            plannedDurationSeconds,
+            category: category || null,
+          }),
+        });
 
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        setError(json.error?.message || "Failed to create task.");
-        return;
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          setError(json.error?.message || "Failed to update task.");
+          return;
+        }
+
+        if (onTaskUpdated) {
+          onTaskUpdated(json.data.task);
+        }
+      } else {
+        const res = await fetch("/api/v1/tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: trimmedTitle,
+            description: description.trim() || undefined,
+            plannedDurationSeconds,
+            category: category || undefined,
+          }),
+        });
+
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          setError(json.error?.message || "Failed to create task.");
+          return;
+        }
+
+        onTaskCreated(json.data.task);
       }
 
-      // Reset form
-      setTitle("");
-      setDescription("");
-      setError(null);
-      onTaskCreated(json.data.task);
       onOpenChange(false);
     } catch {
       setError("Network error. Could not connect to API.");
@@ -118,19 +170,7 @@ export function AddTaskDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl space-y-4">
-        <DialogHeader className="space-y-1">
-          <DialogTitle className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Plus className="size-5 text-[#0071e3]" />
-            Create Focus Task
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Create a reusable task for your focus countdown or stopwatch sessions.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+    <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           {error && (
             <div className="flex items-center gap-2 p-2.5 rounded-xl bg-destructive/10 text-destructive text-xs border border-destructive/20">
               <AlertCircle className="size-4 shrink-0" />
@@ -141,16 +181,18 @@ export function AddTaskDialog({
           {/* Task Name */}
           <div className="space-y-1.5">
             <label htmlFor="task-title" className="text-xs font-semibold text-foreground flex items-center justify-between">
-              <span>Task Title <strong className="text-destructive font-normal">*</strong></span>
+              <span>
+                Task Title <strong className="text-destructive font-normal">*</strong>
+              </span>
               <span className="text-[11px] font-normal text-muted-foreground">{title.length}/100</span>
             </label>
             <Input
               id="task-title"
-              placeholder="e.g. Implement Timer Card Component"
+              placeholder="e.g. Implement Dashboard 12-column layout"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               maxLength={100}
-              className="rounded-xl bg-secondary/30 text-sm"
+              className="rounded-xl text-sm"
               autoFocus
               required
             />
@@ -163,21 +205,21 @@ export function AddTaskDialog({
             </label>
             <Input
               id="task-description"
-              placeholder="e.g. Focus on state transitions and unit tests"
+              placeholder="e.g. Focus on mobile breakpoint and responsive spacing"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="rounded-xl bg-secondary/30 text-sm"
+              className="rounded-xl text-sm"
             />
           </div>
 
-          {/* Time Budget */}
+          {/* Planned Duration / Time Budget */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
               <Clock className="size-3.5 text-muted-foreground" />
-              <span>Time Budget</span>
+              <span>Planned Duration</span>
             </label>
 
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-secondary/50 rounded-xl">
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-secondary/60 rounded-xl">
               <button
                 type="button"
                 onClick={() => setBudgetMode("preset")}
@@ -224,13 +266,13 @@ export function AddTaskDialog({
                     type="button"
                     onClick={() => setSelectedPresetSeconds(p.seconds)}
                     className={cn(
-                      "py-2 px-3 text-xs rounded-xl border transition-all text-left flex items-center justify-between",
+                      "p-2 rounded-xl text-xs font-medium border text-left transition-all",
                       selectedPresetSeconds === p.seconds
-                        ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3] font-semibold"
-                        : "border-border bg-card hover:bg-secondary/40 text-muted-foreground"
+                        ? "border-primary bg-primary/5 text-primary font-semibold ring-1 ring-primary/30"
+                        : "border-border bg-card hover:bg-secondary/40 text-foreground"
                     )}
                   >
-                    <span>{p.label}</span>
+                    {p.label}
                   </button>
                 ))}
               </div>
@@ -239,31 +281,27 @@ export function AddTaskDialog({
             {budgetMode === "custom" && (
               <div className="flex items-center gap-2 pt-1">
                 <Input
-                  id="custom-minutes"
-                  aria-label="Planned countdown duration in minutes"
                   type="number"
-                  min="1"
-                  max="720"
+                  min={1}
+                  max={720}
                   value={customMinutes}
                   onChange={(e) => setCustomMinutes(e.target.value)}
-                  placeholder="Minutes"
-                  className="rounded-xl bg-secondary/30 text-sm w-32"
+                  className="rounded-xl w-28 text-sm tabular-nums"
+                  required
                 />
-                <label htmlFor="custom-minutes" className="text-xs text-muted-foreground cursor-pointer">
-                  minutes planned countdown
-                </label>
+                <span className="text-xs text-muted-foreground font-medium">Minutes (Countdown)</span>
               </div>
             )}
 
             {budgetMode === "stopwatch" && (
               <p className="text-[11px] text-muted-foreground pt-1">
-                Open-ended stopwatch timer. Tracks elapsed focus time without automatic countdown expiry.
+                Stopwatch mode has no time limit. Focus timer counts upward until you stop it.
               </p>
             )}
           </div>
 
-          {/* Category Pills */}
-          <div className="space-y-2">
+          {/* Category Tag Selection */}
+          <div className="space-y-1.5">
             <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
               <Tag className="size-3.5 text-muted-foreground" />
               <span>Category</span>
@@ -275,10 +313,10 @@ export function AddTaskDialog({
                   type="button"
                   onClick={() => setCategory(cat)}
                   className={cn(
-                    "px-3 py-1 text-xs rounded-lg border transition-all",
+                    "px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors",
                     category === cat
-                      ? "border-[#0071e3] bg-[#0071e3]/10 text-[#0071e3] font-semibold"
-                      : "border-border bg-card hover:bg-secondary/40 text-muted-foreground"
+                      ? "border-primary bg-primary/10 text-primary font-semibold"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary/40"
                   )}
                 >
                   {cat}
@@ -287,27 +325,74 @@ export function AddTaskDialog({
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border/50">
+          {/* Footer Submit */}
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
+              size="sm"
               onClick={() => onOpenChange(false)}
-              className="rounded-xl text-xs py-2 px-4"
-              disabled={submitting}
+              className="text-xs rounded-xl"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="rounded-xl text-xs py-2 px-5 bg-[#0071e3] hover:bg-[#0077ed] text-white font-semibold transition-all shadow-xs"
+              size="sm"
               disabled={submitting}
+              className="text-xs rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-4"
             >
-              {submitting ? "Creating..." : "Create Task"}
+              {submitting ? "Saving..." : isEditing ? "Save Changes" : "Create Task"}
             </Button>
           </div>
         </form>
+  );
+}
+
+export function AddTaskDialog({
+  open,
+  onOpenChange,
+  onTaskCreated,
+  taskToEdit,
+  onTaskUpdated,
+}: AddTaskDialogProps) {
+  const isEditing = !!taskToEdit;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-6 rounded-2xl bg-card border border-border shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <Edit2 className="size-4 text-primary" />
+                <span>Edit Focus Task</span>
+              </>
+            ) : (
+              <>
+                <Plus className="size-4.5 text-primary" />
+                <span>Create Focus Task</span>
+              </>
+            )}
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground">
+            {isEditing
+              ? "Update task details or time budget."
+              : "Create a task for your focus countdown or stopwatch sessions."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {open && (
+          <AddTaskForm
+            key={taskToEdit?.id ?? "new"}
+            taskToEdit={taskToEdit}
+            onOpenChange={onOpenChange}
+            onTaskCreated={onTaskCreated}
+            onTaskUpdated={onTaskUpdated}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
 }
+

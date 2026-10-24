@@ -3,14 +3,21 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuth } from "@/lib/auth-context";
-import { Flame, Calendar } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Calendar } from "lucide-react";
 import { TimerCard, type ActiveSession, type TaskItem } from "@/components/timer/timer-card";
 import { RecentTasks } from "@/components/tasks/recent-tasks";
-import { DailySummary, type StatsSummaryData } from "@/components/dashboard/daily-summary";
+import { StreakCard } from "@/components/dashboard/streak-card";
 import { ContributionGraph, type ContributionData } from "@/components/dashboard/contribution-graph";
-import { LeaderboardPreview } from "@/components/dashboard/leaderboard-preview";
 import { formatIndiaDate } from "@/lib/date";
+
+export interface StatsSummaryData {
+  todayDate: string;
+  focusSecondsToday: number;
+  completedTasksToday: number;
+  dailyGoalSeconds: number;
+  currentStreak: number;
+  bestStreak: number;
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -63,24 +70,27 @@ export default function DashboardPage() {
     }
   }, []);
 
-  // 2. Fetch tasks
+  // 2. Fetch active tasks list
   const fetchTasks = useCallback(async () => {
     try {
       const res = await fetch("/api/v1/tasks?status=active");
       if (res.ok) {
         const json = await res.json();
         if (json.success) {
-          setTasks(json.data.tasks || []);
+          setTasks(json.data.tasks);
+          if (json.data.tasks.length > 0 && !selectedTaskId) {
+            setSelectedTaskId(json.data.tasks[0].id);
+          }
         }
       }
     } catch {
-      // Ignore
+      // Ignore network errors quietly
     } finally {
       setLoadingTasks(false);
     }
-  }, []);
+  }, [selectedTaskId]);
 
-  // 3. Fetch stats summary
+  // 3. Fetch summary metrics & streak
   const fetchStatsSummary = useCallback(async () => {
     try {
       const res = await fetch("/api/v1/stats/summary");
@@ -91,14 +101,14 @@ export default function DashboardPage() {
         }
       }
     } catch {
-      // Ignore
+      // Ignore network errors quietly
     }
   }, []);
 
-  // 4. Fetch contribution graph data
+  // 4. Fetch contribution history
   const fetchContributions = useCallback(async () => {
     try {
-      const res = await fetch("/api/v1/stats/contributions");
+      const res = await fetch("/api/v1/stats/contributions?weeks=26");
       if (res.ok) {
         const json = await res.json();
         if (json.success) {
@@ -106,41 +116,36 @@ export default function DashboardPage() {
         }
       }
     } catch {
-      // Ignore
+      // Ignore network errors quietly
     }
   }, []);
 
-  // Master refresh for stats and contributions
   const handleStatsRefresh = useCallback(() => {
     fetchStatsSummary();
     fetchContributions();
-    fetchCurrentSession();
-  }, [fetchStatsSummary, fetchContributions, fetchCurrentSession]);
+    fetchTasks();
+  }, [fetchStatsSummary, fetchContributions, fetchTasks]);
 
-  // Initial mount load
   useEffect(() => {
     let ignore = false;
 
-    const loadInitialData = async () => {
-      try {
-        await Promise.all([
-          fetchCurrentSession(),
-          fetchTasks(),
-          fetchStatsSummary(),
-          fetchContributions(),
-        ]);
-      } catch {
-        // Quiet
-      }
-    };
+    async function loadInitialData() {
+      if (ignore) return;
+      await Promise.allSettled([
+        fetchCurrentSession(),
+        fetchTasks(),
+        fetchStatsSummary(),
+        fetchContributions(),
+      ]);
+    }
 
-    loadInitialData();
+    void loadInitialData();
 
-    // Reconcile interval every 5 seconds
+    // 5-second polling interval for real-time timer & streak state sync
     const interval = setInterval(() => {
       if (!ignore) {
-        fetchCurrentSession();
-        fetchStatsSummary();
+        void fetchCurrentSession();
+        void fetchStatsSummary();
       }
     }, 5000);
 
@@ -153,6 +158,10 @@ export default function DashboardPage() {
   const handleTaskCreated = (newTask: TaskItem) => {
     setTasks((prev) => [newTask, ...prev]);
     setSelectedTaskId(newTask.id);
+  };
+
+  const handleTaskUpdated = (updatedTask: TaskItem) => {
+    setTasks((prev) => prev.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
   };
 
   const handleTaskArchived = (archivedId: string) => {
@@ -170,78 +179,85 @@ export default function DashboardPage() {
   });
 
   return (
-    <AppShell title="Dashboard" subtitle="Active focus sessions & daily tasks">
-      <div className="flex flex-col gap-8 pb-12">
-        {/* 1. Dashboard Header */}
-        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <AppShell title="Dashboard" subtitle="Active focus workspace & daily flow">
+      <div className="flex flex-col gap-6 sm:gap-7 pb-8">
+        {/* Compact Date-Aware Greeting Header */}
+        <header className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1.5 pb-2 border-b border-border/40">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
               {getGreeting()}, {user?.displayName || "Friend"}
             </h1>
-            <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5 font-medium">
-                <Calendar className="size-3.5 text-muted-foreground" />
-                {todayFormatted} (IST)
-              </span>
-            </div>
-          </div>
-
-          {/* Small Streak Indicator Badge in Header */}
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge
-              variant="outline"
-              className="bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400 py-1.5 px-3 rounded-xl flex items-center gap-1.5 text-xs font-semibold"
-            >
-              <Flame className="size-4 fill-amber-500 text-amber-500" />
-              <span>{statsSummary?.currentStreak ?? 0} Day Streak</span>
-            </Badge>
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 tabular-nums">
+              <Calendar className="size-3.5 text-muted-foreground" />
+              <span>{todayFormatted} (IST)</span>
+            </p>
           </div>
         </header>
 
-        {/* 2. Main Focus Area: Obvious Timer Surface */}
-        <section aria-label="Main Focus Timer" className="w-full">
-          <TimerCard
-            currentSession={currentSession}
-            tasks={tasks}
-            loadingSession={loadingSession}
-            onSessionUpdated={(session) => {
-              setCurrentSession(session);
-              if (session?.taskId) setSelectedTaskId(session.taskId);
-            }}
-            onStatsRefresh={handleStatsRefresh}
-            onTaskCreated={handleTaskCreated}
-            selectedTaskId={selectedTaskId}
-            onSelectTaskId={setSelectedTaskId}
-          />
-        </section>
+        {/* 12-Column Responsive Workspace Grid
+            Desktop: Col 1-7 (Timer), Col 8-12 (Streak + Tasks), Full-width (Activity)
+            Mobile Order: Timer (1) → Streak (2) → Tasks (3) → Activity (4) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
+          {/* Module 1: Primary Focus Timer */}
+          <section
+            aria-label="Focus Timer"
+            className="order-1 lg:col-span-7 lg:row-span-2 w-full"
+          >
+            <TimerCard
+              currentSession={currentSession}
+              tasks={tasks}
+              loadingSession={loadingSession}
+              onSessionUpdated={(session) => {
+                setCurrentSession(session);
+                if (session?.taskId) setSelectedTaskId(session.taskId);
+              }}
+              onStatsRefresh={handleStatsRefresh}
+              onTaskCreated={handleTaskCreated}
+              selectedTaskId={selectedTaskId}
+              onSelectTaskId={setSelectedTaskId}
+            />
+          </section>
 
-        {/* 3. Task List / Recent Tasks */}
-        <section aria-label="Focus Tasks" className="w-full">
-          <RecentTasks
-            tasks={tasks}
-            loading={loadingTasks}
-            selectedTaskId={selectedTaskId}
-            onSelectTask={setSelectedTaskId}
-            onTaskCreated={handleTaskCreated}
-            onTaskArchived={handleTaskArchived}
-          />
-        </section>
+          {/* Module 2: Supporting Streak Card */}
+          <section
+            aria-label="Focus Streak"
+            className="order-2 lg:col-span-5 w-full"
+          >
+            <StreakCard
+              currentStreak={statsSummary?.currentStreak ?? 0}
+              bestStreak={statsSummary?.bestStreak ?? 0}
+              completedTasksToday={statsSummary?.completedTasksToday ?? 0}
+            />
+          </section>
 
-        {/* 4. Daily Summary & Streak Metrics */}
-        <DailySummary
-          stats={statsSummary}
-          onGoalUpdated={(newGoal) => {
-            setStatsSummary((prev) => (prev ? { ...prev, dailyGoalSeconds: newGoal } : null));
-          }}
-        />
+          {/* Module 3: Focus Tasks List & Add/Edit Flow */}
+          <section
+            aria-label="Focus Tasks"
+            className="order-3 lg:col-span-5 w-full"
+          >
+            <RecentTasks
+              tasks={tasks}
+              loading={loadingTasks}
+              selectedTaskId={selectedTaskId}
+              onSelectTask={setSelectedTaskId}
+              onTaskCreated={handleTaskCreated}
+              onTaskUpdated={handleTaskUpdated}
+              onTaskArchived={handleTaskArchived}
+            />
+          </section>
 
-        {/* 5. Contribution Graph (Last ~26 Weeks) */}
-        <ContributionGraph
-          data={contributionData}
-        />
-
-        {/* 6. Today's Leaderboard Preview */}
-        <LeaderboardPreview />
+          {/* Module 4: Activity / Contribution Graph with Today's Total in Header */}
+          <section
+            aria-label="Activity & Focus History"
+            className="order-4 col-span-1 lg:col-span-12 w-full"
+          >
+            <ContributionGraph
+              data={contributionData}
+              todayFocusSeconds={statsSummary?.focusSecondsToday ?? 0}
+              todayCompletions={statsSummary?.completedTasksToday ?? 0}
+            />
+          </section>
+        </div>
       </div>
     </AppShell>
   );
