@@ -61,9 +61,14 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { notFound } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function DesignPreviewPage() {
+  if (process.env.NODE_ENV === "production") {
+    notFound();
+  }
+
   const [selectedTab, setSelectedTab] = useState("overview");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
