@@ -13,12 +13,14 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file=../../.env src/db/migrate.ts",
-    "db:check": "tsx --env-file=../../.env src/db/check.ts"
+    "db:check": "tsx --env-file=../../.env src/db/check.ts",
+    "snapshot": "tsx --env-file=../../.env src/scripts/snapshot.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "cron": "^4.4.0",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.4",
     "express": "^5.0.1",

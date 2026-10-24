@@ -160,3 +160,32 @@ duet/
    - `CategoryDistributionChart`: Donut chart + progress meters with Apple palette, including "Uncategorized".
    - `RecentSessions`: Chronological log of recent completed sessions.
 
+### 3.5 Leaderboard, Snapshot Engine & Scheduling (Stage 8)
+1. **Checkpoint Schedule**:
+   - Three official checkpoints daily: `10:00`, `18:00`, and `22:00` in the `Asia/Kolkata` timezone (IST).
+   - In-process scheduler: Runs via `cron` in `apps/api/src/services/scheduler.service.ts` configured explicitly with `timeZone: 'Asia/Kolkata'`.
+   - Sleeping / Serverless deployments: Note that in-process cron only runs while the API process is alive. For platforms that sleep or scale to zero, an external HTTP scheduler (e.g., cron-job.org, Cloudflare Workers, GitHub Actions) must trigger `POST /api/v1/jobs/leaderboard-snapshot` with the `CRON_SECRET`.
+2. **Missing Slot Recovery & Startup Catchup**:
+   - On server startup and on a periodic 15-minute background check, the scheduler detects any due slots that have not yet been captured for today or yesterday.
+   - Missing slots are processed idempotently. Both `scheduledFor` and actual `capturedAt` are preserved. If captured > 15 minutes past scheduled time, `isDelayed` is set to `true` (timestamps are never backdated).
+3. **Idempotency & Concurrency**:
+   - Guaranteed by database unique index `idx_leaderboard_runs_date_slot` on `(localDate, slot)` in `leaderboard_snapshot_runs`.
+   - Concurrent snapshot triggers safely return the existing or winning run.
+4. **Metrics per User per Checkpoint**:
+   - `focusSecondsToday`: Active continuous work segments within today's IST boundaries up to capture time.
+   - `completedTasksToday`: Completed tasks within today's IST boundaries up to capture time.
+   - `focusSecondsLast7Days`: Active focus duration across rolling 7 India calendar days (`today - 6` through `today`).
+   - `completedTasksLast7Days`: Completed tasks across rolling 7 India calendar days.
+   - `displayNameSnapshot`: Snapshot of user's display name at capture time.
+5. **Ranking Rules & Privacy**:
+   - Primary sort: `focusSeconds` descending.
+   - Secondary tie-break: `completedTasks` descending.
+   - Tertiary tie-break: `displayName` ascending.
+   - Returns up to 4 configured active profiles.
+   - Privacy guarantee: No task titles, descriptions, categories, or private timelines are ever exposed.
+6. **Provisional Live Board**:
+   - Before today's first snapshot (10:00 AM IST) or when no snapshots exist yet today, `/leaderboard` computes and displays a live provisional tally clearly labeled with `isProvisional: true` and the next scheduled slot.
+7. **Safe Local CLI**:
+   - Developers can trigger manual snapshots locally using `pnpm snapshot` (or `pnpm --filter api snapshot --date=YYYY-MM-DD --slot=10:00`) without exposing the secret over HTTP.
+
+

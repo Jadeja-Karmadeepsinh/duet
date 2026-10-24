@@ -8,6 +8,8 @@ import { taskRouter } from './routes/tasks.js';
 import { workSessionRouter } from './routes/work-sessions.js';
 import { statsRouter } from './routes/stats.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { leaderboardRouter } from './routes/leaderboard.js';
+import { jobsRouter } from './routes/jobs.js';
 import { AppError } from './utils/errors.js';
 import { ZodError } from 'zod';
 
@@ -57,6 +59,8 @@ app.use('/api/v1/tasks', taskRouter);
 app.use('/api/v1/work-sessions', workSessionRouter);
 app.use('/api/v1/stats', statsRouter);
 app.use('/api/v1/analytics', analyticsRouter);
+app.use('/api/v1/leaderboard', leaderboardRouter);
+app.use('/api/v1/jobs', jobsRouter);
 
 
 

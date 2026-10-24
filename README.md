@@ -62,3 +62,24 @@ pnpm dev
 pnpm typecheck
 pnpm test
 ```
+
+### 6. Leaderboard Snapshots & Scheduling
+
+Snapshots freeze team standings daily at **10:00**, **18:00**, and **22:00** in `Asia/Kolkata` (UTC+05:30).
+
+- **In-Process Scheduler**: When running an always-on Express API process (`pnpm dev` or production Node process), `cron` schedules checkpoints and performs startup/periodic missed-slot catchups automatically.
+- **Scaling to Zero / Serverless Sleep**: In-process cron only executes while the Express process is actively awake and running. If deploying to platforms that sleep or scale to zero (e.g. Render free tier, Fly machine sleep, Cloud Run), configure an external cron service (such as GitHub Actions, Upstash QStash, or Cloud Scheduler) to trigger the protected HTTP endpoint:
+  ```http
+  POST /api/v1/jobs/leaderboard-snapshot
+  Headers:
+    Authorization: Bearer <CRON_SECRET>
+    # or
+    x-cron-secret: <CRON_SECRET>
+  ```
+  The endpoint verifies `CRON_SECRET` using constant-time comparison (`crypto.timingSafeEqual`) and idempotently captures any due or missing snapshot slots.
+- **Manual Local Development CLI**: Run snapshots on demand without exposing secrets or public routes:
+  ```bash
+  pnpm snapshot
+  # or
+  pnpm --filter api snapshot
+  ```

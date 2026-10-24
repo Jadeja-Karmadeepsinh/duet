@@ -144,3 +144,24 @@ export function getDaysBetweenDatesInclusive(startDateStr: string, endDateStr: s
   return Math.max(1, Math.round((t2 - t1) / (24 * 3600 * 1000)) + 1);
 }
 
+export type LeaderboardSlot = '10:00' | '18:00' | '22:00';
+export const LEADERBOARD_SLOTS: LeaderboardSlot[] = ['10:00', '18:00', '22:00'];
+
+/**
+ * Given a "YYYY-MM-DD" date string and slot ("10:00" | "18:00" | "22:00") in Asia/Kolkata,
+ * returns the exact scheduled UTC Date.
+ */
+export function getSlotScheduledUtc(dateString: string, slot: LeaderboardSlot): Date {
+  const [y, m, d] = dateString.split('-').map((v) => parseInt(v, 10));
+  const [hourStr, minStr] = slot.split(':').map((v) => parseInt(v, 10));
+  const utcTimestamp = Date.UTC(y, m - 1, d, hourStr, minStr, 0, 0) - ASIA_KOLKATA_OFFSET_MS;
+  return new Date(utcTimestamp);
+}
+
+/**
+ * Checks whether a snapshot was captured late (more than 15 minutes past its scheduled time).
+ */
+export function isSlotDelayed(scheduledFor: Date, capturedAt: Date): boolean {
+  return capturedAt.getTime() - scheduledFor.getTime() > 15 * 60 * 1000;
+}
+

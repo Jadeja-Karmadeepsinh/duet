@@ -9,6 +9,7 @@ import {
   workSessionSegments,
   taskCompletions,
   userPreferences,
+  leaderboardSnapshotRuns,
 } from '../db/schema/index.js';
 import { normalizeDisplayName } from '../utils/crypto.js';
 import {
@@ -32,7 +33,7 @@ describe('Stats API & Engine Integration Tests', () => {
     await db.delete(users).where(eq(users.normalizedName, normalizeDisplayName('StatsTester1')));
     await db.delete(users).where(eq(users.normalizedName, normalizeDisplayName('StatsTester2')));
 
-    // 2. Register User 1
+    // 2. Register/Signin User 1
     const res1 = await request(app)
       .post('/api/v1/auth/signup')
       .send({
@@ -40,12 +41,23 @@ describe('Stats API & Engine Integration Tests', () => {
         pin: '1234',
         inviteCode: testInviteCode,
       });
-    user1Id = res1.body.data.user.id;
-    const header1 = res1.headers['set-cookie'];
-    const cookies1 = Array.isArray(header1) ? header1 : [header1 as string];
-    user1Cookie = cookies1.find((c: string) => c && c.startsWith(`${SESSION_COOKIE_NAME}=`))!.split(';')[0];
 
-    // 3. Register User 2
+    if (res1.status === 201) {
+      user1Id = res1.body.data.user.id;
+      const header1 = res1.headers['set-cookie'];
+      const cookies1 = Array.isArray(header1) ? header1 : [header1 as string];
+      user1Cookie = cookies1.find((c: string) => c && c.startsWith(`${SESSION_COOKIE_NAME}=`))!.split(';')[0];
+    } else {
+      const login1 = await request(app)
+        .post('/api/v1/auth/signin')
+        .send({ displayName: 'StatsTester1', pin: '1234' });
+      user1Id = login1.body.data.user.id;
+      const header1 = login1.headers['set-cookie'];
+      const cookies1 = Array.isArray(header1) ? header1 : [header1 as string];
+      user1Cookie = cookies1.find((c: string) => c && c.startsWith(`${SESSION_COOKIE_NAME}=`))!.split(';')[0];
+    }
+
+    // 3. Register/Signin User 2
     const res2 = await request(app)
       .post('/api/v1/auth/signup')
       .send({
@@ -53,10 +65,21 @@ describe('Stats API & Engine Integration Tests', () => {
         pin: '5678',
         inviteCode: testInviteCode,
       });
-    user2Id = res2.body.data.user.id;
-    const header2 = res2.headers['set-cookie'];
-    const cookies2 = Array.isArray(header2) ? header2 : [header2 as string];
-    user2Cookie = cookies2.find((c: string) => c && c.startsWith(`${SESSION_COOKIE_NAME}=`))!.split(';')[0];
+
+    if (res2.status === 201) {
+      user2Id = res2.body.data.user.id;
+      const header2 = res2.headers['set-cookie'];
+      const cookies2 = Array.isArray(header2) ? header2 : [header2 as string];
+      user2Cookie = cookies2.find((c: string) => c && c.startsWith(`${SESSION_COOKIE_NAME}=`))!.split(';')[0];
+    } else {
+      const login2 = await request(app)
+        .post('/api/v1/auth/signin')
+        .send({ displayName: 'StatsTester2', pin: '5678' });
+      user2Id = login2.body.data.user.id;
+      const header2 = login2.headers['set-cookie'];
+      const cookies2 = Array.isArray(header2) ? header2 : [header2 as string];
+      user2Cookie = cookies2.find((c: string) => c && c.startsWith(`${SESSION_COOKIE_NAME}=`))!.split(';')[0];
+    }
   });
 
   afterAll(async () => {
@@ -251,6 +274,9 @@ describe('Stats API & Engine Integration Tests', () => {
   });
 
   it('GET /api/v1/stats/leaderboard-preview returns provisional status when no snapshot run exists', async () => {
+    const todayDate = getAsiaKolkataDateString(new Date());
+    await db.delete(leaderboardSnapshotRuns).where(eq(leaderboardSnapshotRuns.localDate, todayDate));
+
     const res = await request(app)
       .get('/api/v1/stats/leaderboard-preview')
       .set('Cookie', user1Cookie);

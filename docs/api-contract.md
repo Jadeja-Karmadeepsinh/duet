@@ -563,3 +563,64 @@ Returns aggregate focus metrics, time series bins, category distribution, and pr
 }
 ```
 
+---
+
+## 7. Leaderboard & Scheduled Jobs API (`/api/v1/leaderboard` & `/api/v1/jobs`)
+
+### `GET /api/v1/leaderboard`
+Returns official checkpoint standings or provisional live standings for the authenticated profile.
+- **Auth**: Required (session cookie or bearer token)
+- **Query Parameters**:
+  - `period`: `'today' | '7d'` (default: `'today'`).
+  - `slot`: optional checkpoint slot (`'10:00' | '18:00' | '22:00'`) to inspect earlier snapshots captured today.
+- **Sorting & Ranking**:
+  - Primary: `focusSeconds` descending.
+  - Secondary tie-break: `completedTasks` descending.
+  - Tertiary stable tie-break: `displayName` ascending.
+  - Maximum profiles returned: 4.
+  - Zero private data leak: No task titles, notes, or raw session histories are returned.
+- **Response** (`200 OK`):
+```json
+{
+  "success": true,
+  "data": {
+    "period": "today",
+    "date": "2026-10-24",
+    "currentSlot": "10:00",
+    "availableSlots": ["10:00"],
+    "isProvisional": false,
+    "scheduledFor": "2026-10-24T04:30:00.000Z",
+    "capturedAt": "2026-10-24T04:31:00.000Z",
+    "isDelayed": false,
+    "nextScheduledSlot": "18:00",
+    "activeProfileCount": 2,
+    "entries": [
+      {
+        "rank": 1,
+        "userId": "0c01899c-...",
+        "displayName": "imjadejakj",
+        "focusSeconds": 7200,
+        "completedTasks": 3,
+        "isCurrentUser": true
+      }
+    ],
+    "timezone": "Asia/Kolkata (IST)"
+  }
+}
+```
+
+### `POST /api/v1/jobs/leaderboard-snapshot`
+Internal protected endpoint that processes due/missed snapshot slots or triggers a specific slot.
+- **Auth**: Required via `x-cron-secret` header or `Authorization: Bearer <CRON_SECRET>`. Verified using constant-time comparison (`crypto.timingSafeEqual`). Normal user sessions cannot invoke this endpoint.
+- **Request Body (optional)**:
+```json
+{
+  "date": "2026-10-24",
+  "slot": "10:00"
+}
+```
+- **Responses**:
+  - `200 OK`: `{ "success": true, "message": "Processed due snapshot checkpoints.", "data": { "results": [ ... ] } }`
+  - `401 Unauthorized`: Missing or invalid `CRON_SECRET`.
+
+

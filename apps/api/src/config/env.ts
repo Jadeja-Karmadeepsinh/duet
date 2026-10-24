@@ -30,6 +30,7 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().min(16, 'SESSION_SECRET must be at least 16 characters').default('dev-session-secret-at-least-32-characters-long-123456'),
   INVITE_CODE: z.string().min(1).default('focus-team-2026'),
   JOB_SECRET: z.string().min(1).default('dev-job-secret-token'),
+  CRON_SECRET: z.string().min(1).default(process.env.JOB_SECRET || 'dev-cron-secret-token'),
 });
 
 const parsed = envSchema.safeParse(process.env);

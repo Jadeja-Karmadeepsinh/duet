@@ -544,4 +544,10 @@ describe('Timer Engine Integration Tests', () => {
       expect(sessions.every((s: any) => s.status === 'completed')).toBe(true);
     });
   });
+
+  afterAll(async () => {
+    await db.delete(users).where(eq(users.normalizedName, normalizeDisplayName('TimerTester1')));
+    await db.delete(users).where(eq(users.normalizedName, normalizeDisplayName('TimerTester2')));
+  });
 });
+
