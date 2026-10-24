@@ -22,8 +22,8 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// Health check endpoint
-app.get('/api/v1/health', async (_req: Request, res: Response) => {
+// Health check endpoints
+const handleHealthCheck = async (_req: Request, res: Response) => {
   const dbHealth = await checkDatabaseConnection();
   const now = new Date();
 
@@ -38,7 +38,11 @@ app.get('/api/v1/health', async (_req: Request, res: Response) => {
       databaseError: dbHealth.error,
     },
   });
-});
+};
+
+app.get('/health', handleHealthCheck);
+app.get('/api/health', handleHealthCheck);
+app.get('/api/v1/health', handleHealthCheck);
 
 // 404 handler for unmatched routes
 app.use((_req: Request, res: Response) => {

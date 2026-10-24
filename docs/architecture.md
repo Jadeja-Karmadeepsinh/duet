@@ -15,11 +15,12 @@ The application is structured as a lightweight monorepo managed by **pnpm worksp
 | Next.js App Router (localhost:3000)                         |
 +-------------------------------------------------------------+
         |                               ^
-        | Calls /api/v1/* (Same-origin) | Cookie / Response
+        | Calls /api/:path* or /health  | Cookie / Response
         v                               |
 +-------------------------------------------------------------+
 | Next.js Server Rewrite / Proxy                              |
-| Forwards /api/v1/* -> API_PROXY_TARGET (localhost:8000)     |
+| Forwards /api/:path* -> API_PROXY_TARGET (localhost:8000)   |
+| Forwards /health -> API_PROXY_TARGET/health                 |
 +-------------------------------------------------------------+
         |                               ^
         | HTTP Request                  | Response + Set-Cookie
@@ -47,8 +48,8 @@ The application is structured as a lightweight monorepo managed by **pnpm worksp
 - `apps/web` never connects directly to PostgreSQL and `DATABASE_URL` is never exposed to browser or client bundles.
 
 ### 2.2 Same-Origin Reverse Proxy & Cookie Forwarding
-- Browser interactions send requests to relative paths under `/api/v1`.
-- Next.js acts as a reverse proxy, forwarding requests to `API_PROXY_TARGET` (default `http://localhost:8000`).
+- Browser interactions send requests to relative paths under `/api` or `/health`.
+- Next.js acts as a reverse proxy via `next.config.ts` rewrites, forwarding requests to `API_PROXY_TARGET` (default `http://localhost:8000`).
 - This design completely eliminates cross-site third-party cookie blocking in production and staging while keeping authentication cookie attributes clean (`SameSite=Lax`, `HttpOnly`, `Path=/`, and `Secure` in production).
 
 ### 2.3 Strict Server-Side User Ownership
@@ -76,3 +77,44 @@ To guarantee calculation consistency across the dashboard, analytics, and leader
 - Snapshot records are keyed uniquely by `(snapshot_date, slot, profile_id)` to guarantee idempotency.
 - Rolling 7-day metrics are computed directly from raw historical active work segments and completions, never by summing checkpoint snapshots.
 - A protected endpoint (`/api/v1/jobs/leaderboard-snapshot`) allows triggering via external schedulers (e.g. cron-job.org, Cloudflare Cron Triggers, GitHub Actions) for serverless or sleeping deployments.
+
+---
+
+## 3. Stage 1 Scaffold & Request Flow
+
+### 3.1 Monorepo Layout
+```
+duet/
+├── apps/
+│   ├── api/                     # Express 5 + TypeScript server (port 8000)
+│   │   ├── src/
+│   │   │   ├── app.ts           # Express setup, middleware, /health, error handlers
+│   │   │   ├── server.ts        # Startup listener
+│   │   │   ├── config/env.ts    # Zod environment validation
+│   │   │   ├── db/              # Neon database client & Drizzle schema
+│   │   │   ├── utils/timezone.ts# Asia/Kolkata timezone utilities
+│   │   │   └── tests/           # Vitest integration & unit tests
+│   │   ├── .env.example         # API server environment template
+│   │   └── package.json
+│   └── web/                     # Next.js 16 App Router (port 3000)
+│       ├── src/
+│       │   ├── app/             # App Router layout, globals.css, health test page
+│       │   ├── components/ui/   # shadcn UI components
+│       │   └── lib/utils.ts     # Styling utilities (clsx + tailwind-merge)
+│       ├── next.config.ts       # Same-origin proxy rewrites to Express
+│       ├── .env.example         # Web environment template
+│       └── package.json
+├── docs/                        # Architecture, data model, API, design system
+├── .env.example                 # Root workspace environment template
+├── package.json                 # Monorepo root scripts (dev, dev:web, dev:api, build, test, etc.)
+└── pnpm-workspace.yaml          # pnpm workspace definition (apps/*)
+```
+
+### 3.2 Request Flow
+1. **Direct API Access (Development/Testing)**:
+   - `GET http://localhost:8000/health` -> Express API returns JSON status directly.
+2. **Same-Origin Client Access (Browser)**:
+   - Browser on `http://localhost:3000` fetches relative path `/api/health`, `/health`, or `/api/v1/health`.
+   - Next.js server inspects `next.config.ts` rewrites, resolves server-only `API_PROXY_TARGET` (`http://localhost:8000`), and proxies the HTTP request.
+   - Express API returns JSON health payload.
+   - Next.js streams the response back to browser with cookies intact.
