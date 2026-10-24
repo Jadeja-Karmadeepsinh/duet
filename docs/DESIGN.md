@@ -142,3 +142,28 @@ Two-person team accountability view:
   }
   ```
   Motion for React hooks automatically observe `(prefers-reduced-motion: reduce)` to disable spring displacement.
+
+---
+
+## 7. Centralized Stacking & Z-Index Layer Scale
+
+All surfaces and floating overlays adhere strictly to a centralized stacking order:
+
+| Layer | Z-Index Token | Usage & Components |
+|---|---|---|
+| **Base Canvas** | `z-0` | Normal in-flow cards, activity sections, charts, and content grids |
+| **Pill / Focus Highlights** | `z-1` / `relative z-10` | Elevated active tabs, avatar status badges, selection rings |
+| **Sticky Sidebar** | `z-20` | Fixed desktop navigation rail (`aside[data-slot="sidebar"]`) |
+| **Sticky Glass Top Header** | `z-20` | Desktop/mobile sticky header with backdrop blur |
+| **Mobile Glass Bottom Navigation** | `z-30` | Mobile floating glass nav bar with safe-area insets |
+| **Floating Popovers & Dropdowns** | `z-50` | Floating menus, select positioners, action dropdowns |
+| **Tooltips Layer** | `z-50` | Tooltip portals rendered into `document.body` with `Positioner className="z-50"` |
+| **Modal Backdrops & Dialogs** | `z-50` (`isolate`) | Confirmation dialogs, day-detail modal, decision flow |
+| **System Notifications / Toast** | `z-60` | High-priority toast alerts and undo banners |
+
+### Theme-Safe Tooltip Architecture
+- **Surface**: `bg-popover` (pure white `#ffffff` in light mode; charcoal `#1c1c1e` in dark mode).
+- **Text Contrast**: Primary text uses `text-popover-foreground` ($\ge 14:1$ contrast ratio); secondary/metadata text uses `text-muted-foreground` ($\ge 5.2:1$ contrast ratio in both modes).
+- **Border & Shadow**: Hairline `border border-border shadow-md` prevents blending into backdrop cards.
+- **Portaling & Clipping**: All tooltips render through `TooltipPortal` with `pointer-events-none` so they never intercept underlying clicks or suffer ancestor `overflow-y` clipping.
+

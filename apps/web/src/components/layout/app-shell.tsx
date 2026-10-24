@@ -123,35 +123,44 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "relative group flex items-center gap-3 px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors press-scale",
-                  active
-                    ? "text-foreground font-semibold"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
-                )}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="sidebar-active-tab"
-                    className="absolute inset-0 rounded-xl bg-secondary shadow-2xs -z-0"
-                    transition={activePillSpring}
-                  />
-                )}
-                <Icon
-                  className={cn(
-                    "relative z-10 size-4 shrink-0 transition-colors",
-                    active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                  )}
+              <Tooltip key={item.href}>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href={item.href}
+                      aria-label={item.name}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "relative group flex items-center gap-3 px-3 py-2 rounded-xl text-[13.5px] font-medium transition-colors press-scale",
+                        active
+                          ? "text-foreground font-semibold"
+                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                      )}
+                    >
+                      {active && (
+                        <motion.span
+                          layoutId="sidebar-active-tab"
+                          className="absolute inset-0 rounded-xl bg-secondary shadow-2xs -z-0"
+                          transition={activePillSpring}
+                        />
+                      )}
+                      <Icon
+                        className={cn(
+                          "relative z-10 size-4 shrink-0 transition-colors",
+                          active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                        )}
+                      />
+                      <span className="relative z-10 truncate">{item.name}</span>
+                      {active && (
+                        <span className="relative z-10 ml-auto size-1.5 rounded-full bg-primary" aria-hidden="true" />
+                      )}
+                    </Link>
+                  }
                 />
-                <span className="relative z-10 truncate">{item.name}</span>
-                {active && (
-                  <span className="relative z-10 ml-auto size-1.5 rounded-full bg-primary" aria-hidden="true" />
-                )}
-              </Link>
+                <TooltipContent side="right" sideOffset={10} className="hidden md:block">
+                  {item.name}
+                </TooltipContent>
+              </Tooltip>
             );
           })}
         </nav>
@@ -181,8 +190,9 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
                     </span>
                   }
                 />
-                <TooltipContent side="top" className="text-xs">
-                  {user.displayName}
+                <TooltipContent side="top" sideOffset={8} className="text-xs max-w-[200px]">
+                  <span className="font-semibold block">{user.displayName}</span>
+                  <span className="text-[10px] text-muted-foreground block">Active profile</span>
                 </TooltipContent>
               </Tooltip>
               <span className="text-[10px] text-muted-foreground truncate">Active Profile</span>
@@ -203,7 +213,7 @@ export function AppShell({ title, subtitle, children }: AppShellProps) {
                   </Button>
                 }
               />
-              <TooltipContent side="top" className="text-xs">
+              <TooltipContent side="top" sideOffset={8} className="text-xs">
                 Sign out
               </TooltipContent>
             </Tooltip>

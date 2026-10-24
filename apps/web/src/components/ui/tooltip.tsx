@@ -1,26 +1,35 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
-import { cn } from "cn"
+import * as React from "react";
+import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
+import { cn } from "@/lib/utils";
 
 function TooltipProvider({
   delay = 200,
   ...props
 }: TooltipPrimitive.Provider.Props) {
-  return <TooltipPrimitive.Provider data-slot="tooltip-provider" delay={delay} {...props} />
+  return <TooltipPrimitive.Provider data-slot="tooltip-provider" delay={delay} {...props} />;
 }
 
 function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
 }
 
 function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
 }
 
 function TooltipPortal({ ...props }: TooltipPrimitive.Portal.Props) {
-  return <TooltipPrimitive.Portal data-slot="tooltip-portal" {...props} />
+  return <TooltipPrimitive.Portal data-slot="tooltip-portal" {...props} />;
+}
+
+export interface TooltipContentProps
+  extends TooltipPrimitive.Popup.Props,
+    Pick<
+      TooltipPrimitive.Positioner.Props,
+      "side" | "align" | "sideOffset" | "alignOffset" | "collisionPadding"
+    > {
+  container?: HTMLElement | null;
 }
 
 function TooltipContent({
@@ -28,20 +37,27 @@ function TooltipContent({
   side = "top",
   align = "center",
   sideOffset = 6,
+  alignOffset = 0,
+  collisionPadding = 8,
+  container,
   children,
   ...props
-}: TooltipPrimitive.Popup.Props &
-  Pick<
-    TooltipPrimitive.Positioner.Props,
-    "side" | "align" | "sideOffset"
-  >) {
+}: TooltipContentProps) {
   return (
-    <TooltipPortal>
-      <TooltipPrimitive.Positioner side={side} align={align} sideOffset={sideOffset}>
+    <TooltipPortal container={container}>
+      <TooltipPrimitive.Positioner
+        data-slot="tooltip-positioner"
+        side={side}
+        align={align}
+        sideOffset={sideOffset}
+        alignOffset={alignOffset}
+        collisionPadding={collisionPadding}
+        className="z-50"
+      >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
           className={cn(
-            "z-50 overflow-hidden rounded-md bg-foreground px-2.5 py-1 text-xs text-background shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+            "z-50 overflow-hidden rounded-xl border border-border bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 select-none pointer-events-none max-w-xs break-words",
             className
           )}
           {...props}
@@ -53,4 +69,4 @@ function TooltipContent({
   );
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider, TooltipPortal };

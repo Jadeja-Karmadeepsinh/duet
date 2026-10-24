@@ -321,14 +321,20 @@ export function ContributionGraph({
                                 />
                                 <TooltipContent
                                   side="top"
-                                  className="text-xs bg-popover text-popover-foreground border border-border shadow-md py-1.5 px-3"
+                                  sideOffset={6}
+                                  className="text-xs max-w-[240px]"
                                 >
                                   <p className="font-semibold text-popover-foreground">
-                                    {formattedDate} {isToday && "(Today)"}
+                                    {formattedDate} {isToday ? "(Today)" : ""}
                                   </p>
-                                  <p className="text-muted-foreground">
-                                    {day.completionCount} completed • {formatHoursMinutes(day.focusSeconds)} focus
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                                    {day.completionCount === 0 && day.focusSeconds === 0
+                                      ? "No completed tasks • 0m focus"
+                                      : `${day.completionCount} ${day.completionCount === 1 ? "task" : "tasks"} completed • ${formatHoursMinutes(day.focusSeconds)} focus`}
                                   </p>
+                                  <span className="text-[10px] text-muted-foreground/75 block mt-1 pt-1 border-t border-border/40">
+                                    Click square to inspect details
+                                  </span>
                                 </TooltipContent>
                               </Tooltip>
                             );
