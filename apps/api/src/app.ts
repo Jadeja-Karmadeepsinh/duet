@@ -15,6 +15,9 @@ import { ZodError } from 'zod';
 
 export const app = express();
 
+// Trust reverse proxy (Next.js rewrites, Render, Railway, Cloudflare, etc.)
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
   credentials: true,

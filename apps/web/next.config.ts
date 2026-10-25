@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
     },
   },
   async rewrites() {
-    const apiTarget = process.env.API_PROXY_TARGET || "http://localhost:8000";
+    const apiTarget = (process.env.API_PROXY_TARGET || "http://localhost:8000").replace(/\/$/, "");
     return [
       {
         source: "/api/:path*",

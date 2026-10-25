@@ -169,12 +169,13 @@ describe('Analytics API & Engine Integration Tests', () => {
     const now = new Date();
     const todayStr = getAsiaKolkataDateString(now);
     const yesterdayStr = getPreviousDateString(todayStr);
+    const twoDaysAgoStr = getPreviousDateString(yesterdayStr);
 
-    const { startUtc: todayStart } = getAsiaKolkataDayBounds(todayStr);
     const { startUtc: yesterdayStart } = getAsiaKolkataDayBounds(yesterdayStr);
+    const { startUtc: twoDaysAgoStart } = getAsiaKolkataDayBounds(twoDaysAgoStr);
 
-    // Create session 1: Coding, today (1800s / 30m)
-    const session1Start = new Date(todayStart.getTime() + 10 * 3600 * 1000); // 10:00 AM IST today
+    // Create session 1: Coding, yesterday (1800s / 30m)
+    const session1Start = new Date(yesterdayStart.getTime() + 10 * 3600 * 1000); // 10:00 AM IST yesterday
     const session1End = new Date(session1Start.getTime() + 1800 * 1000);
 
     const [sess1] = await db
@@ -208,8 +209,8 @@ describe('Analytics API & Engine Integration Tests', () => {
       completedAt: session1End,
     });
 
-    // Create session 2: Uncategorized, yesterday (3600s / 60m - longest session)
-    const session2Start = new Date(yesterdayStart.getTime() + 14 * 3600 * 1000); // 2:00 PM IST yesterday
+    // Create session 2: Uncategorized, two days ago (3600s / 60m - longest session)
+    const session2Start = new Date(twoDaysAgoStart.getTime() + 14 * 3600 * 1000); // 2:00 PM IST two days ago
     const session2End = new Date(session2Start.getTime() + 3600 * 1000);
 
     const [sess2] = await db
@@ -243,10 +244,10 @@ describe('Analytics API & Engine Integration Tests', () => {
       completedAt: session2End,
     });
 
-    // Add a second completion today on coding task (so today has 2 completions, yesterday has 1)
-    // But yesterday has 3600s focus, today has 1800s focus!
+    // Add a second completion yesterday on coding task (so yesterday has 2 completions, two days ago has 1)
+    // But two days ago has 3600s focus, yesterday has 1800s focus!
     // This cleanly proves most-focus vs most-completions days can differ!
-    const extraTime = new Date(todayStart.getTime() + 12 * 3600 * 1000);
+    const extraTime = new Date(yesterdayStart.getTime() + 12 * 3600 * 1000);
     const [sessExtra] = await db
       .insert(workSessions)
       .values({
@@ -281,9 +282,9 @@ describe('Analytics API & Engine Integration Tests', () => {
 
     // Total focus = 1800 + 3600 = 5400s (1.5 hours)
     expect(summary.totalFocusSeconds).toBe(5400);
-    // Total completions = 1 (today) + 1 (yesterday) + 1 (extra today) = 3
+    // Total completions = 1 (yesterday) + 1 (two days ago) + 1 (extra yesterday) = 3
     expect(summary.totalCompletions).toBe(3);
-    // Active days = 2 (today and yesterday)
+    // Active days = 2 (yesterday and two days ago)
     expect(summary.activeDaysCount).toBe(2);
 
     // Average per calendar day (5400 / 7 ≈ 771)
@@ -291,14 +292,14 @@ describe('Analytics API & Engine Integration Tests', () => {
     // Average per active day (5400 / 2 = 2700)
     expect(summary.averageFocusSecondsPerActiveDay).toBe(2700);
 
-    // Most focus day is yesterday (3600s > 1800s)
+    // Most focus day is two days ago (3600s > 1800s)
     expect(summary.mostFocusDay).not.toBeNull();
-    expect(summary.mostFocusDay.date).toBe(yesterdayStr);
+    expect(summary.mostFocusDay.date).toBe(twoDaysAgoStr);
     expect(summary.mostFocusDay.focusSeconds).toBe(3600);
 
-    // Most completions day is today (2 completions > 1 completion)
+    // Most completions day is yesterday (2 completions > 1 completion)
     expect(summary.mostCompletionsDay).not.toBeNull();
-    expect(summary.mostCompletionsDay.date).toBe(todayStr);
+    expect(summary.mostCompletionsDay.date).toBe(yesterdayStr);
     expect(summary.mostCompletionsDay.completionCount).toBe(2);
 
     // Longest session is sess2 (3600s)

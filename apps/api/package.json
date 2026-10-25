@@ -12,9 +12,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx --env-file=../../.env src/db/migrate.ts",
-    "db:check": "tsx --env-file=../../.env src/db/check.ts",
-    "snapshot": "tsx --env-file=../../.env src/scripts/snapshot.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:migrate:prod": "node dist/db/migrate.js",
+    "db:migrate:kit": "drizzle-kit migrate",
+    "db:check": "tsx src/db/check.ts",
+    "snapshot": "tsx src/scripts/snapshot.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
