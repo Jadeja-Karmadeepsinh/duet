@@ -1,0 +1,75 @@
+name: Scheduled Leaderboard Snapshots
+
+on:
+  schedule:
+    # Checkpoints in Asia/Kolkata (IST = UTC+5:30):
+    # 10:00 AM IST -> 04:30 UTC
+    - cron: '30 4 * * *'
+    # 06:00 PM IST -> 12:30 UTC
+    - cron: '30 12 * * *'
+    # 10:00 PM IST -> 16:30 UTC
+    - cron: '30 16 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger'
+        required: false
+        default: 'Manual snapshot check'
+
+jobs:
+  trigger-snapshots:
+    name: Process Due Snapshots
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Repository Secrets
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "::error::Repository secret 'APP_URL' is missing. Please configure APP_URL in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::Repository secret 'CRON_SECRET' is missing. Please configure CRON_SECRET in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          echo "Repository secrets validated successfully."
+
+      - name: Trigger Due Snapshots Checkpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          # Sanitize base URL by trimming trailing slashes
+          BASE_URL="${APP_URL%/}"
+          ENDPOINT="${BASE_URL}/api/v1/jobs/due-snapshots"
+
+          echo "Target Endpoint: ${ENDPOINT}"
+
+          # Call endpoint with Bearer auth and capture HTTP status code
+          # Allows up to 120s timeout and 2 retries to accommodate cold starts (e.g. Render spin-up)
+          HTTP_STATUS=$(curl -s -S -o response.json -w "%{http_code}" \
+            --max-time 120 \
+            --retry 2 \
+            --retry-delay 5 \
+            -X POST "${ENDPOINT}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Content-Type: application/json")
+
+          echo "HTTP Status Code: ${HTTP_STATUS}"
+          echo "Response Body:"
+          if [ -f response.json ]; then
+            cat response.json
+            echo ""
+          else
+            echo "(No response body returned)"
+          fi
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 300 ]; then
+            echo "✓ Snapshot processing succeeded."
+            exit 0
+          else
+            echo "::error::Snapshot trigger failed with HTTP status ${HTTP_STATUS}."
+            exit 1
+          fi

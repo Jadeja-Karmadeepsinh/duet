@@ -3,7 +3,7 @@ import { env } from './config/env.js';
 import { client } from './db/index.js';
 import { schedulerService } from './services/scheduler.service.js';
 
-const server = app.listen(env.PORT, async () => {
+const server = app.listen(env.PORT, '0.0.0.0', async () => {
   console.log(`Focus Tracker API server running on port ${env.PORT} in ${env.NODE_ENV} mode`);
   console.log(`Health check: http://localhost:${env.PORT}/api/v1/health`);
 

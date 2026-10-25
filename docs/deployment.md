@@ -170,8 +170,21 @@ Leaderboard snapshots freeze team progress at **10:00 AM**, **6:00 PM**, and **1
 - On server startup or restart, the scheduler automatically detects and processes any missed slots.
 
 #### Mode B: External Scheduler (API Sleeps / Restarts / Free Tier)
-If your API host may sleep or scale to zero, configure an external scheduler (e.g. [cron-job.org](https://cron-job.org), GitHub Actions, Upstash QStash, or Cloud Scheduler) to trigger the protected due-snapshots endpoint.
+If your API host may sleep or scale to zero (e.g. Render Free tier), an external scheduler triggers the protected due-snapshots checkpoint.
 
+We provide a built-in GitHub Actions workflow at `.github/workflows/scheduled-snapshots.yml`:
+
+1. In your GitHub repository, navigate to **Settings > Secrets and variables > Actions**.
+2. Click **New repository secret** and add:
+   - `APP_URL`: Your deployed frontend or API URL (e.g. `https://focusduo.vercel.app` or `https://focus-duo-api.onrender.com`).
+   - `CRON_SECRET`: The exact secret string configured in your API service.
+3. The workflow runs automatically at:
+   - `30 4 * * *` (04:30 UTC / 10:00 AM IST)
+   - `30 12 * * *` (12:30 UTC / 06:00 PM IST)
+   - `30 16 * * *` (16:30 UTC / 10:00 PM IST)
+4. You can also trigger it on demand via **Actions > Scheduled Leaderboard Snapshots > Run workflow**.
+
+Alternatively, you can configure an external service like [cron-job.org](https://cron-job.org) or Cloudflare Workers:
 - **Endpoint URL**: `https://focusduo.vercel.app/api/v1/jobs/due-snapshots` (or direct API `https://focus-duo-api.onrender.com/api/v1/jobs/due-snapshots`)
 - **HTTP Method**: `POST` (or `GET`)
 - **HTTP Headers**:
@@ -180,11 +193,6 @@ If your API host may sleep or scale to zero, configure an external scheduler (e.
   Content-Type: application/json
   ```
   *(Or `x-cron-secret: <YOUR_CRON_SECRET>`)*
-- **Schedule Times (Asia/Kolkata)**:
-  - `0 10 * * *` (10:00 AM IST / 04:30 UTC)
-  - `0 18 * * *` (06:00 PM IST / 12:30 UTC)
-  - `0 22 * * *` (10:00 PM IST / 16:30 UTC)
-  - Optional safety catch-up: `*/15 * * * *` (every 15 minutes)
 - **Security Rule**: Tokens in URL query strings (e.g. `?secret=...`) are strictly **rejected with HTTP 403 Forbidden** to prevent secrets from leaking into access logs.
 
 ---
